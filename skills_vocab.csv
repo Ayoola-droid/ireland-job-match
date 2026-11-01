@@ -1,0 +1,45 @@
+skill,pattern,i_have_it,case_sensitive,weight
+SQL,\bsql\b|mysql|postgres|sqlite,yes,no,3
+Python,\bpython\b|pandas,yes,no,3
+R,\bR\b(?![&-])|rstudio|tidyverse,yes,yes,3
+Excel,\bexcel\b|spreadsheet,yes,no,1
+VBA / macros,\bvba\b|macros,yes,no,3
+Power BI,power ?bi|\bdax\b,yes,no,3
+Tableau,tableau,yes,no,3
+Statistics,statistic,yes,no,3
+Forecasting,forecast,yes,no,3
+Predictive modelling / ML,machine learning|predictive model|regression model|linear regression|logistic regression|random forest|xgboost,yes,no,3
+Dashboards / visualisation,dashboard|visuali[sz]ation,yes,no,1
+Data quality / cleaning,data quality|data cleaning|data cleansing|data integrity,yes,no,1
+Reporting,\breporting\b,yes,no,1
+Stakeholder communication,stakeholder,yes,no,1
+Requirements gathering,requirements gathering|business requirements|user stories,yes,no,1
+Google Analytics,google analytics|\bga4\b,yes,no,3
+SEO,\bseo\b,yes,no,1
+Digital marketing,digital marketing|paid search|google ads|adwords|\bppc\b,yes,no,1
+CRM,\bcrm\b,yes,no,1
+E-commerce,e-?commerce,yes,no,1
+Git / GitHub,\bgit\b|github,yes,no,3
+Customer service,customer service|customer-facing|customer facing,yes,no,1
+Public health data,public health|epidemiolog|healthcare data|clinical data,yes,no,1
+Java,\bjava\b,no,no,3
+JavaScript / TypeScript,javascript|typescript|\breact\b|node\.js,no,no,3
+C++ / C# / Go / Scala / Rust,c\+\+|c#|\bgolang\b|\bscala\b|\brust\b,no,no,3
+Cloud (AWS / Azure / GCP),\baws\b|\bazure\b|\bgcp\b|google cloud,no,no,3
+Docker / Kubernetes / Terraform,docker|kubernetes|terraform,no,no,3
+Spark / Databricks,\bspark\b|databricks|hadoop,no,no,3
+Snowflake / dbt,snowflake|\bdbt\b,no,no,3
+Airflow,airflow,no,no,3
+Looker,looker,no,no,3
+Salesforce,salesforce,no,no,3
+SAP,\bsap\b,no,no,3
+Accounting qualification,\baca\b|\bacca\b|\bcima\b|chartered accountant,no,no,3
+Legal qualification,solicitor|barrister|qualified lawyer,no,no,3
+Clinical registration,registered nurse|\bnmbi\b|medical council,no,no,3
+Sales quota,\bquota\b|closing deals|new business sales,no,no,1
+Data analysis,data analys|analys\w* (?:of )?data|analytical skills,yes,no,3
+Project management,project management|project plan|project support,yes,no,1
+Microsoft Office / ICT skills,microsoft office|ms office|\bict skills|word and excel,yes,no,1
+KPI / performance reporting,\bkpis?\b|performance (?:reporting|monitoring|metrics),yes,no,1
+Payroll,\bpayroll\b,no,no,3
+Budgeting / financial management,budget|financial management|management accounts,no,no,1
