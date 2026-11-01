@@ -1,0 +1,9 @@
+# Python
+.venv/
+__pycache__/
+
+# Data stays on your computer: the DETE file names individual sole traders,
+# and saved HSE pages include recruiters' contact details. See README > Setup.
+data/
+output/
+logs/
