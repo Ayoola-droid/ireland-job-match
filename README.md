@@ -8,9 +8,9 @@
 - Live HSE job ads from [about.hse.ie](https://about.hse.ie/jobs/job-search/) (public pages; robots.txt allows the jobs section)
 - HSE consolidated pay scales by grade (June 2026), stored in `hse_grade_pay.csv`
 
-**Tools:** Python 3.12 (pandas, requests, openpyxl), regular expressions, Excel
+**Tools:** Python 3.12 (pandas, requests, openpyxl, python-docx), regular expressions, Excel, Word
 
-**Status:** In progress. The pipeline runs end to end (fetch → score → sponsor check). Next: tailored CVs for shortlisted jobs, more job sources.
+**Status:** In progress. The pipeline runs end to end (fetch → score → sponsor check → tailored CV). Next: weight the ad's essential criteria, add more job sources.
 
 ## Key findings (first run, 1 November 2026)
 
@@ -19,6 +19,7 @@
 3. **Public health is a strong sponsor.** HSE entities hold 194 permits across 15 regional names, and hospital groups add more (University Limerick Hospitals Group 171, Cork University Hospital 165). Three of the six shortlisted jobs are HSE Grade VII posts starting at **€61,219**.
 4. **Company boilerplate distorts keyword matching.** Up to **60%** of an ad's text (Intercom, HSE) is repeated "About us", benefits and terms text. Removing sentences that recur across a company's ads stopped false matches such as a recruiting role "requiring" customer-service software skills.
 5. **Most ads don't state pay.** Only **17 of 237** tech-company ads in Ireland give a salary, so pay is flagged as "ask before applying" rather than assumed.
+6. **A skill score can overstate fit.** An HSE Grade VII *Data & Digital Communications* post scored 77%, but the requirement-by-requirement checklist showed that its essential criteria are extensive CRM and Salesforce experience. Counting skills is not enough; which skills are *essential* matters.
 
 ## Skills demonstrated
 
@@ -28,6 +29,7 @@
 - Matching messy entity names (brand vs legal name) with a human-checked mapping file
 - Building a multi-step pipeline where each step does one job and can be rerun on its own
 - Privacy by design: personal names and contact details are never stored or committed
+- Generating Word documents in code (python-docx) from structured, tagged content
 
 ## Method
 
@@ -35,6 +37,7 @@
 2. **Jobs** (`fetch_greenhouse.py`, `fetch_hse.py`): download ads with full descriptions, keep Irish locations, and save dated raw copies. For HSE, read grade, advertisement type (who can apply), closing date, and the Word job specification where one is attached.
 3. **Scoring** (`score_jobs.py`): remove company boilerplate, find skills from `skills_vocab.csv` in each ad, and compute a weighted skill score (technical skills weight 3, general skills weight 1). Then apply eight tests: recent, still open, open to me, right level, pay at or above €40,904, years of experience, language, skills. Every test has its own column, so the output shows why a job was left out.
 4. **Sponsor evidence** (`add_sponsors.py`): join jobs to the DETE list through `company_aliases.csv`, and rate each employer as *strong* (10+ permits across 6+ months), *some* or *not on list*.
+5. **Tailored CV** (`tailor_cv.py`): my CV is stored as small, true, skill-tagged pieces in `cv_master.json`. For a chosen job, the script ranks each piece by the weight of its tags that the job asks for (plus shared words), then keeps the most relevant summary sentences, projects and bullets and lists matching skills first, in bold. It never writes new claims, only chooses and reorders. It also writes a checklist that pairs each requirement in the ad with my best evidence (STRONG, SOME or no clear match).
 
 ### Judgement calls
 
@@ -64,6 +67,7 @@ Run in this order (in VS Code, open each file and click ▶):
 2. `fetch_greenhouse.py` and `fetch_hse.py`: download today's jobs
 3. `score_jobs.py`: settings (time frame, years, salary floor, minimum score) are at the top of the file
 4. `add_sponsors.py`: writes `data/processed/jobs_ranked.csv`
+5. `tailor_cv.py`: pick a shortlisted job; writes `output/CV_<company>_<id>.docx` and `output/NOTES_<company>_<id>.md`
 
 ## Setup
 
@@ -76,6 +80,8 @@ pip install -r requirements.txt
 ```
 
 If PowerShell refuses to run `Activate.ps1`, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
+
+To make tailored CVs, copy `cv_master.example.json` to `cv_master.json` and replace the placeholder name and contact details with your own (`cv_master.json` is kept out of Git).
 
 The data isn't in the repository. Download *Employment permits issued to companies 2026* from the DETE link above into `data/raw/`, then run the scripts in the order shown. Tested with Python 3.12.10, pandas 3.1.0, openpyxl 3.1.5 and requests 2.34.2.
 
@@ -91,6 +97,7 @@ The data isn't in the repository. Download *Employment permits issued to compani
 | `fetch_hse.py` | Reads all HSE listings and job pages → `jobs_hse.csv` |
 | `score_jobs.py` | Removes boilerplate, scores skills, applies the eight tests → `jobs_scored.csv` |
 | `add_sponsors.py` | Adds sponsor evidence and ranks the shortlist → `jobs_ranked.csv` |
+| `tailor_cv.py` | Builds a tailored Word CV and an evidence checklist for one shortlisted job → `output/` |
 
 | Mapping file | What it holds (edit these, not the code) |
 |---|---|
@@ -98,6 +105,7 @@ The data isn't in the repository. Download *Employment permits issued to compani
 | `skills_vocab.csv` | Skills, the words that reveal them, whether I have them, and their weight |
 | `company_aliases.csv` | Brand name → legal name(s) on the DETE list, with notes |
 | `hse_grade_pay.csv` | HSE pay range by grade and whether it suits my level |
+| `cv_master.json` | My CV as skill-tagged pieces (private; `cv_master.example.json` shows the layout) |
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). As a project convention, the `data` type marks changes to the mapping files above.
 
@@ -111,4 +119,5 @@ ireland-job-match/
 └── data/                    not in Git
     ├── raw/                 DETE file, dated job downloads
     └── processed/           cleaned and scored tables
+output/                      tailored CVs and notes (not in Git)
 ```
