@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from track_applications import load_log, match_applications
+
 # ---- Settings you can change ------------------------------------------------
 DAYS = 30               # posting time frame: only jobs first published in the last 30 days
 MAX_YEARS = 4           # the most "years of experience" you will apply for
@@ -176,7 +178,15 @@ def main():
     # Salary: checked when the pay is known; unknown pay passes, flagged as 'ask at interview'
     jobs["ok_salary"] = jobs["pay_min"].isna() | (jobs["pay_min"] >= SALARY_FLOOR)
     jobs["ok_skills"] = (jobs["skill_score"] >= MIN_SCORE) & (jobs["n_have"] >= MIN_SKILLS_MATCHED)
-    tests = ["ok_recent", "ok_open", "ok_eligible", "ok_level", "ok_salary", "ok_years", "ok_language", "ok_skills"]
+
+    # Never apply twice: leave out jobs already in data/applications.csv, flag look-alikes
+    log = load_log()
+    jobs = match_applications(jobs, log)
+    jobs["ok_not_applied"] = jobs["applied_on"] == ""
+    print(f"Applications in your log: {len(log)}")
+
+    tests = ["ok_recent", "ok_open", "ok_eligible", "ok_level", "ok_salary", "ok_years", "ok_language",
+             "ok_skills", "ok_not_applied"]
     jobs["shortlist"] = jobs[tests].all(axis=1)
 
     print("How many jobs pass each test:")
@@ -195,6 +205,8 @@ def main():
         print("  none today - see 'near misses' below")
     for _, j in shortlist.iterrows():
         print(f"\n  {j['company']} | {j['title']} | {j['days_old']} days old")
+        if j["possible_repeat"]:
+            print(f"    CHECK: looks like a job you already applied to: {j['possible_repeat']}")
         if j["source"] == "hse":
             print(f"    {j['grade']} (EUR {j['pay_min']:,.0f}-{j['pay_max']:,.0f}) | {j['ad_type']} | "
                   f"closes {j['closing_date']} | job spec read: {j['has_job_spec']}")
@@ -216,6 +228,7 @@ def main():
     for _, j in near.iterrows():
         failed = [t.replace("ok_", "") for t in tests if not j[t]][0]
         detail = {"open": "closing date passed", "eligible": "internal-only",
+                  "not_applied": f"you applied on {j['applied_on']}",
                   "salary": f"starts at EUR {j['pay_min']:,.0f}" if pd.notna(j.get("pay_min")) else "",
                   "years": f"asks {int(j['years_required']) if pd.notna(j['years_required']) else '?'} yrs",
                   "language": j["languages_required"], "level": "senior title",
