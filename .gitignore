@@ -7,3 +7,6 @@ __pycache__/
 data/
 output/
 logs/
+
+# Personal CV content with contact details (cv_master.example.json shows the layout)
+cv_master.json
