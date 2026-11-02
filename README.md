@@ -10,7 +10,7 @@
 
 **Tools:** Python 3.12 (pandas, requests, openpyxl, python-docx), regular expressions, Excel, Word
 
-**Status:** In progress. The pipeline runs end to end (fetch → score → sponsor check → tailored CV). Next: weight the ad's essential criteria, add more job sources.
+**Status:** In progress. The pipeline runs end to end (fetch → score → sponsor check → tailored CV → application log). Next: weight the ad's essential criteria, add more job sources.
 
 ## Key findings (first run, 1 November 2026)
 
@@ -35,9 +35,10 @@
 
 1. **Sponsor list** (`clean_sponsors.py`): load the DETE file, check that employers add up to the Total row for every month, drop the Total row, fill blanks with 0, and build a matching key (upper case, `&` → AND, no punctuation, legal endings such as LIMITED/DAC/PLC removed). Names that share a key are flagged, not merged.
 2. **Jobs** (`fetch_greenhouse.py`, `fetch_hse.py`): download ads with full descriptions, keep Irish locations, and save dated raw copies. For HSE, read grade, advertisement type (who can apply), closing date, and the Word job specification where one is attached.
-3. **Scoring** (`score_jobs.py`): remove company boilerplate, find skills from `skills_vocab.csv` in each ad, and compute a weighted skill score (technical skills weight 3, general skills weight 1). Then apply eight tests: recent, still open, open to me, right level, pay at or above €40,904, years of experience, language, skills. Every test has its own column, so the output shows why a job was left out.
+3. **Scoring** (`score_jobs.py`): remove company boilerplate, find skills from `skills_vocab.csv` in each ad, and compute a weighted skill score (technical skills weight 3, general skills weight 1). Then apply nine tests: recent, still open, open to me, right level, pay at or above €40,904, years of experience, language, skills, and not already applied to. Every test has its own column, so the output shows why a job was left out.
 4. **Sponsor evidence** (`add_sponsors.py`): join jobs to the DETE list through `company_aliases.csv`, and rate each employer as *strong* (10+ permits across 6+ months), *some* or *not on list*.
 5. **Tailored CV** (`tailor_cv.py`): my CV is stored as small, true, skill-tagged pieces in `cv_master.json`. For a chosen job, the script ranks each piece by the weight of its tags that the job asks for (plus shared words), then keeps the most relevant summary sentences, projects and bullets and lists matching skills first, in bold. It never writes new claims, only chooses and reorders. It also writes a checklist that pairs each requirement in the ad with my best evidence (STRONG, SOME or no clear match).
+6. **Application log** (`track_applications.py`): records each application (date, CV file sent, status) in `data/applications.csv`. The scorer leaves out jobs already applied to (same source and job ID) and flags look-alikes: same company, and titles sharing 80%+ of their words once reference codes and re-post words such as *Amended* or *Phase 2* are removed. Look-alikes are flagged, not hidden, because a re-post can be a new vacancy.
 
 ### Judgement calls
 
@@ -68,6 +69,7 @@ Run in this order (in VS Code, open each file and click ▶):
 3. `score_jobs.py`: settings (time frame, years, salary floor, minimum score) are at the top of the file
 4. `add_sponsors.py`: writes `data/processed/jobs_ranked.csv`
 5. `tailor_cv.py`: pick a shortlisted job; writes `output/CV_<company>_<id>.docx` and `output/NOTES_<company>_<id>.md`
+6. `track_applications.py`: after applying, mark the job as applied; update statuses (interview, offer, rejected, no reply) as replies come in
 
 ## Setup
 
@@ -95,9 +97,10 @@ The data isn't in the repository. Download *Employment permits issued to compani
 | `fetch_greenhouse.py` | Downloads ads from the boards in `companies.csv` → `jobs_greenhouse.csv` |
 | `download_hse_sample.py` | Saves one HSE page to inspect its structure (exploration step) |
 | `fetch_hse.py` | Reads all HSE listings and job pages → `jobs_hse.csv` |
-| `score_jobs.py` | Removes boilerplate, scores skills, applies the eight tests → `jobs_scored.csv` |
+| `score_jobs.py` | Removes boilerplate, scores skills, applies the nine tests → `jobs_scored.csv` |
 | `add_sponsors.py` | Adds sponsor evidence and ranks the shortlist → `jobs_ranked.csv` |
 | `tailor_cv.py` | Builds a tailored Word CV and an evidence checklist for one shortlisted job → `output/` |
+| `track_applications.py` | Logs applications and their status → `data/applications.csv` (private); used by `score_jobs.py` to skip jobs already applied to |
 
 | Mapping file | What it holds (edit these, not the code) |
 |---|---|
