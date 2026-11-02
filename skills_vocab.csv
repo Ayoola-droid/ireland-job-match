@@ -12,12 +12,12 @@ Predictive modelling / ML,machine learning|predictive model|regression model|lin
 Dashboards / visualisation,dashboard|visuali[sz]ation,yes,no,1
 Data quality / cleaning,data quality|data cleaning|data cleansing|data integrity,yes,no,1
 Reporting,\breporting\b,yes,no,1
-Stakeholder communication,stakeholder,yes,no,1
+Stakeholder communication,stakeholder|communication skills,yes,no,1
 Requirements gathering,requirements gathering|business requirements|user stories,yes,no,1
 Google Analytics,google analytics|\bga4\b,yes,no,3
 SEO,\bseo\b,yes,no,1
-Digital marketing,digital marketing|paid search|google ads|adwords|\bppc\b,yes,no,1
-CRM,\bcrm\b,yes,no,1
+Digital marketing,digital marketing|paid search|google ads|adwords|\bppc\b|email marketing|email campaign|social media (?:marketing|advertising|campaign),yes,no,1
+CRM,\bcrm\b|hubspot|mailchimp,yes,no,1
 E-commerce,e-?commerce,yes,no,1
 Git / GitHub,\bgit\b|github,yes,no,3
 Customer service,customer service|customer-facing|customer facing,yes,no,1
