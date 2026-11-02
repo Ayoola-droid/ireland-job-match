@@ -1,0 +1,438 @@
+{
+  "_note": "Your master CV. Only TRUE statements go here: the tailoring script chooses and reorders them, it never writes new claims. Tags must match skill names in skills_vocab.csv. Copy this file to cv_master.json and put your own details in it; cv_master.json is kept out of Git because it holds contact details.",
+  "name": "Your Name",
+  "contact": [
+    "Town, Eircode",
+    "+353 00 000 0000",
+    "you@example.com",
+    "linkedin.com/in/your-profile",
+    "github.com/your-username"
+  ],
+  "summary": [
+    {
+      "text": "Business analytics graduate (MSc, First Class Honours) and statistician with hands-on public-health data experience.",
+      "tags": [
+        "Data analysis",
+        "Statistics",
+        "Public health data"
+      ],
+      "always": true
+    },
+    {
+      "text": "I clean and analyse large datasets with SQL, Python and R, and build Power BI and Tableau dashboards that track KPIs.",
+      "tags": [
+        "SQL",
+        "Python",
+        "R",
+        "Power BI",
+        "Tableau",
+        "Dashboards / visualisation",
+        "KPI / performance reporting",
+        "Data quality / cleaning"
+      ]
+    },
+    {
+      "text": "I build predictive and forecasting models and test them against industry-standard error metrics.",
+      "tags": [
+        "Predictive modelling / ML",
+        "Forecasting",
+        "Statistics"
+      ]
+    },
+    {
+      "text": "I automate recurring reports in Python and Excel VBA, with reconciliation checks so the numbers can be trusted.",
+      "tags": [
+        "Reporting",
+        "Excel",
+        "VBA / macros",
+        "Python",
+        "Data quality / cleaning"
+      ]
+    },
+    {
+      "text": "I explain findings in plain language to stakeholders at every level, and bring a background in sales, digital marketing, CRM and e-commerce.",
+      "tags": [
+        "Stakeholder communication",
+        "CRM",
+        "Digital marketing",
+        "E-commerce",
+        "Customer service"
+      ],
+      "always": true
+    }
+  ],
+  "skills": [
+    "SQL (MySQL, PostgreSQL, SQLite)",
+    "Python (pandas, openpyxl)",
+    "R / RStudio (tidymodels, sf)",
+    "Power BI (DAX)",
+    "Tableau",
+    "Excel & VBA macros",
+    "Statistics",
+    "Modelling & forecasting",
+    "Machine learning in R (Random Forest, XGBoost)",
+    "Data management & data quality",
+    "Git & GitHub",
+    "CRM tools (HubSpot, Mailchimp)",
+    "Social media advertising (Facebook, Instagram)",
+    "Google Analytics GA4",
+    "SEO",
+    "Google Ads",
+    "E-commerce",
+    "WordPress",
+    "Web design",
+    "Stakeholder communication",
+    "Problem solving"
+  ],
+  "skill_tags": {
+    "SQL (MySQL, PostgreSQL, SQLite)": [
+      "SQL"
+    ],
+    "Python (pandas, openpyxl)": [
+      "Python"
+    ],
+    "R / RStudio (tidymodels, sf)": [
+      "R"
+    ],
+    "Power BI (DAX)": [
+      "Power BI",
+      "Dashboards / visualisation",
+      "KPI / performance reporting"
+    ],
+    "Tableau": [
+      "Tableau",
+      "Dashboards / visualisation"
+    ],
+    "Excel & VBA macros": [
+      "Excel",
+      "VBA / macros",
+      "Microsoft Office / ICT skills"
+    ],
+    "Statistics": [
+      "Statistics",
+      "Data analysis"
+    ],
+    "Modelling & forecasting": [
+      "Forecasting",
+      "Predictive modelling / ML"
+    ],
+    "Machine learning in R (Random Forest, XGBoost)": [
+      "Predictive modelling / ML"
+    ],
+    "Data management & data quality": [
+      "Data quality / cleaning",
+      "Data analysis"
+    ],
+    "Git & GitHub": [
+      "Git / GitHub"
+    ],
+    "Google Analytics GA4": [
+      "Google Analytics"
+    ],
+    "SEO": [
+      "SEO"
+    ],
+    "Google Ads": [
+      "Digital marketing"
+    ],
+    "E-commerce": [
+      "E-commerce"
+    ],
+    "Stakeholder communication": [
+      "Stakeholder communication"
+    ],
+    "CRM tools (HubSpot, Mailchimp)": [
+      "CRM",
+      "Digital marketing"
+    ],
+    "Social media advertising (Facebook, Instagram)": [
+      "Digital marketing"
+    ]
+  },
+  "projects": [
+    {
+      "title": "Ireland Job Match: visa-aware job search pipeline",
+      "tools": "Python, REST APIs, pandas",
+      "bullet": "Built a Python pipeline that collects 2,500+ live job ads from career-board APIs and HSE job pages, scores each against 44 skills, and links employers to 29,989 Irish work permits from DETE data.",
+      "tags": [
+        "Python",
+        "Data quality / cleaning",
+        "Data analysis",
+        "Reporting",
+        "Git / GitHub"
+      ]
+    },
+    {
+      "title": "Olist E-commerce Sales & Delivery Analysis",
+      "tools": "SQL, Python, Power BI",
+      "bullet": "Built a Python and SQL pipeline and a two-page Power BI dashboard on 99,000 orders; showed late deliveries average 2.27 stars vs 4.29 on time, and that 14% of sellers generate 68% of revenue.",
+      "tags": [
+        "SQL",
+        "Python",
+        "Power BI",
+        "Dashboards / visualisation",
+        "KPI / performance reporting",
+        "E-commerce",
+        "Data analysis",
+        "Customer service"
+      ]
+    },
+    {
+      "title": "MSc Thesis: How Crime Shapes Property Values in Ireland",
+      "tools": "R, Tableau",
+      "bullet": "Geocoded 700,000+ Property Price Register sales and modelled them against Garda crime data; Random Forest and XGBoost (test R² up to 0.76) improved accuracy by about 10% over hedonic regression.",
+      "tags": [
+        "R",
+        "Tableau",
+        "Predictive modelling / ML",
+        "Statistics",
+        "Data analysis",
+        "Data quality / cleaning"
+      ]
+    },
+    {
+      "title": "Wicklow County Council Public Spend Analysis",
+      "tools": "Python (pandas), Excel",
+      "bullet": "Automated a monthly report reconciling €149.7m of purchase orders to published totals; standardised 276 supplier names, categorised spend and flagged a possible €320k duplicate entry.",
+      "tags": [
+        "Python",
+        "Excel",
+        "Reporting",
+        "Data quality / cleaning",
+        "Data analysis",
+        "KPI / performance reporting"
+      ]
+    },
+    {
+      "title": "Irish County Forecasts",
+      "tools": "R (modeltime)",
+      "bullet": "Selected the best of four forecasting models (ARIMA, ETS, TBATS, NNETAR) for each county, cutting forecast error by 21–28% versus a single model.",
+      "tags": [
+        "R",
+        "Forecasting",
+        "Statistics",
+        "Predictive modelling / ML"
+      ]
+    }
+  ],
+  "max_projects": 3,
+  "experience": [
+    {
+      "heading": "MSc Business Analytics (academic work) | TUS Limerick | Oct 2024 – May 2025",
+      "bullets": [
+        {
+          "text": "For my master's thesis I analysed challenges and tested hypotheses with data-driven insights.",
+          "tags": [
+            "Statistics",
+            "Data analysis"
+          ]
+        },
+        {
+          "text": "Led a group project to design and manage a scalable, secure data ecosystem based on industry best practice, maintaining relational databases in 3rd normal form and querying them with SQL.",
+          "tags": [
+            "SQL",
+            "Data quality / cleaning",
+            "Project management",
+            "Requirements gathering"
+          ]
+        },
+        {
+          "text": "Created advanced predictive models in RStudio and simpler ones in Excel, using industry-standard error metrics, and translated business questions into analytics projects.",
+          "tags": [
+            "R",
+            "Excel",
+            "Predictive modelling / ML",
+            "Forecasting",
+            "Requirements gathering"
+          ]
+        },
+        {
+          "text": "Conceptualised solutions to business problems and presented key take-aways to stakeholders.",
+          "tags": [
+            "Stakeholder communication"
+          ]
+        },
+        {
+          "text": "Automated Excel reports by writing a dynamic VBA macro that handles recurring analytical processes.",
+          "tags": [
+            "Excel",
+            "VBA / macros",
+            "Reporting"
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Customer Assistant | Tesco, Ireland | Apr 2023 – Sep 2024",
+      "bullets": [
+        {
+          "text": "Proactively engaged customers, communicating the latest offers and promotions.",
+          "tags": [
+            "Customer service"
+          ]
+        },
+        {
+          "text": "Resolved customer queries and concerns with professionalism, drawing on strong interpersonal skills.",
+          "tags": [
+            "Customer service",
+            "Stakeholder communication"
+          ]
+        },
+        {
+          "text": "Cross-sold products successfully, contributing to increased store revenue.",
+          "tags": [
+            "Customer service"
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Sales & Marketing Manager | Fadare Enterprises, Lagos | Jul 2020 – Aug 2022",
+      "bullets": [
+        {
+          "text": "Used web analytics tools, including Google Analytics and Bing Analytics, to measure KPIs and campaign performance, identify trends and make data-driven optimisations.",
+          "tags": [
+            "Google Analytics",
+            "KPI / performance reporting",
+            "Data analysis",
+            "Digital marketing"
+          ]
+        },
+        {
+          "text": "Managed customer databases and updated the company website with new products, content and blog posts, optimising customer journeys to boost conversions.",
+          "tags": [
+            "CRM",
+            "Data quality / cleaning",
+            "E-commerce"
+          ]
+        },
+        {
+          "text": "Designed and ran targeted email campaigns in Mailchimp, increasing customer acquisition, engagement and sales.",
+          "tags": [
+            "Digital marketing",
+            "CRM"
+          ]
+        },
+        {
+          "text": "Implemented SEO, Google Ads and social media campaigns (Facebook, Instagram, YouTube) to grow online presence and website traffic.",
+          "tags": [
+            "SEO",
+            "Digital marketing"
+          ]
+        },
+        {
+          "text": "Prepared marketing and sales strategies to drive business growth and brand visibility.",
+          "tags": [
+            "Digital marketing",
+            "Stakeholder communication"
+          ]
+        },
+        {
+          "text": "Researched competitors' products to identify industry trends and opportunities.",
+          "tags": [
+            "Data analysis"
+          ]
+        },
+        {
+          "text": "Produced advertising materials for online and offline use, keeping branding consistent for stakeholders.",
+          "tags": [
+            "Digital marketing",
+            "Stakeholder communication"
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Data Analyst / Administrator | Nigeria Centre for Disease Control, Lagos | Nov 2019 – May 2021",
+      "bullets": [
+        {
+          "text": "Collected, cleaned and analysed large datasets on virus propagation and effect in Excel, providing insights for public health policy and decision-making.",
+          "tags": [
+            "Data quality / cleaning",
+            "Data analysis",
+            "Excel",
+            "Public health data"
+          ]
+        },
+        {
+          "text": "Used statistical methods and analytical tools to uncover patterns and trends in health data, helping to anticipate and manage outbreaks.",
+          "tags": [
+            "Statistics",
+            "Data analysis",
+            "Public health data",
+            "Forecasting"
+          ]
+        },
+        {
+          "text": "Coordinated with government agencies, researchers and public health organisations to share data-driven insights.",
+          "tags": [
+            "Stakeholder communication",
+            "Public health data"
+          ]
+        },
+        {
+          "text": "Provided data insights to epidemiologists and virologists to support effective health interventions.",
+          "tags": [
+            "Stakeholder communication",
+            "Public health data",
+            "Data analysis"
+          ]
+        },
+        {
+          "text": "Used strong Excel and data manipulation skills to support daily operations.",
+          "tags": [
+            "Excel",
+            "Data quality / cleaning"
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Statistician (Internship) | Lagos Bureau of Statistics | Sep 2018 – Aug 2019",
+      "bullets": []
+    },
+    {
+      "heading": "Graphic Designer | Freelance, online | Jul 2017 – Aug 2022",
+      "bullets": [
+        {
+          "text": "Worked closely with clients to understand their design needs, audience and messaging, and turned them into visual concepts.",
+          "tags": [
+            "Stakeholder communication",
+            "Requirements gathering",
+            "Customer service"
+          ]
+        },
+        {
+          "text": "Managed project timelines, budgets and deliverables so projects finished on time, within budget and to client expectations.",
+          "tags": [
+            "Project management"
+          ]
+        },
+        {
+          "text": "Created print and digital designs (logos, brochures, social media posts, infographics, websites) in Adobe Photoshop, CorelDraw and Canva.",
+          "tags": [
+            "Digital marketing",
+            "Dashboards / visualisation"
+          ]
+        },
+        {
+          "text": "Developed brand identities for clients, including logos, colour palettes and typography.",
+          "tags": [
+            "Digital marketing"
+          ]
+        }
+      ]
+    }
+  ],
+  "max_bullets_per_role": 3,
+  "education": [
+    "MSc Business Analytics, First Class Honours | Technological University of the Shannon, Limerick | 2024 – 2025",
+    "PgDip Digital Marketing (Minor: Management), First Class Honours | Technological University of the Shannon, Limerick | 2022 – 2023",
+    "BSc Statistics | Federal University of Agriculture, Abeokuta | 2014 – 2018"
+  ],
+  "certificates": [
+    "LinkedIn Learning: Salesforce Essentials Training",
+    "LinkedIn Learning: SEO Expert",
+    "LinkedIn Learning: Email Marketing: Strategy and Optimization"
+  ]
+}
