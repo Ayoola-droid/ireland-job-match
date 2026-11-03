@@ -1,0 +1,15 @@
+{
+  "_note": "Search settings, shared by the scripts and the app (the app's sliders save here).",
+  "days": 30,
+  "max_years": 4,
+  "languages": [
+    "english"
+  ],
+  "min_score": 0.35,
+  "min_skills_matched": 3,
+  "salary_floor": 40904,
+  "include_internal": false,
+  "hse_categories": [
+    "Management/Admin/ICT"
+  ]
+}

@@ -20,9 +20,11 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from settings import setting
+
 # ---- Settings you can change ------------------------------------------------
-DAYS = 30
-CATEGORIES = ["Management/Admin/ICT"]
+DAYS = setting("days", 30)
+CATEGORIES = setting("hse_categories", ["Management/Admin/ICT"])
 MAX_PAGES = 40           # safety stop
 PAUSE_SECONDS = 1.0      # wait between requests, to be polite to the HSE site
 # -----------------------------------------------------------------------------

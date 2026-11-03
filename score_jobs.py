@@ -13,16 +13,17 @@ from pathlib import Path
 
 import pandas as pd
 
+from settings import setting
 from track_applications import load_log, match_applications
 
-# ---- Settings you can change ------------------------------------------------
-DAYS = 30               # posting time frame: only jobs first published in the last 30 days
-MAX_YEARS = 4           # the most "years of experience" you will apply for
-MY_LANGUAGES = ["english"]
-MIN_SCORE = 0.6         # weighted share of the ad's skills you must have (0.6 = 60%)
-MIN_SKILLS_MATCHED = 3  # and at least this many matching skills
-SALARY_FLOOR = 40904      # Critical Skills Employment Permit minimum (with a relevant degree)
-INCLUDE_INTERNAL = False  # True if you become eligible for HSE "Internal and Confined" jobs
+# ---- Settings (edit app_settings.json, or use the sliders in the app) ---------
+DAYS = setting("days", 30)                        # posting time frame: jobs first published in the last N days
+MAX_YEARS = setting("max_years", 4)               # the most "years of experience" you will apply for
+MY_LANGUAGES = setting("languages", ["english"])
+MIN_SCORE = setting("min_score", 0.6)             # weighted share of the ad's skills you must have
+MIN_SKILLS_MATCHED = setting("min_skills_matched", 3)
+SALARY_FLOOR = setting("salary_floor", 40904)     # Critical Skills Employment Permit minimum (relevant degree)
+INCLUDE_INTERNAL = setting("include_internal", False)  # True if eligible for HSE "Internal and Confined" jobs
 # -----------------------------------------------------------------------------
 
 JOB_FILES = [Path("data/processed/jobs_greenhouse.csv"), Path("data/processed/jobs_hse.csv")]
