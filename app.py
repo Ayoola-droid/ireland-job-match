@@ -24,7 +24,8 @@ import streamlit as st
 PROJECT = Path(__file__).resolve().parent
 os.chdir(PROJECT)  # every script uses paths relative to the project folder
 
-import cv_import  # noqa: E402  (these must come after chdir)
+import ats_feeds  # noqa: E402  (these must come after chdir)
+import cv_import  # noqa: E402
 import settings  # noqa: E402
 
 S = settings.load()
@@ -95,24 +96,42 @@ st.markdown("""
 
 
 # ---------- helpers ------------------------------------------------------------
+def show_result(name, returncode, output):
+    ok = returncode == 0
+    with st.expander(f"{'✅' if ok else '❌'} {name}", expanded=not ok):
+        st.code(output[-6000:] or "(no output)")
+    if not ok:
+        st.error(f"{name} stopped with an error (details above).")
+    return ok
+
+
 def run_scripts(*names):
     """Run pipeline scripts one after another, showing their output. Stops at the first error."""
     for name in names:
         with st.spinner(f"Running {name} ..."):
             result = subprocess.run([sys.executable, name], capture_output=True, text=True,
                                     cwd=PROJECT, encoding="utf-8", errors="replace")
-        ok = result.returncode == 0
-        with st.expander(f"{'✅' if ok else '❌'} {name}", expanded=not ok):
-            st.code((result.stdout + result.stderr)[-6000:] or "(no output)")
-        if not ok:
-            st.error(f"{name} stopped with an error (details above).")
+        if not show_result(name, result.returncode, result.stdout + result.stderr):
             return False
     return True
 
 
+def run_together(*names):
+    """Run scripts at the same time (the job sources are different websites, so fetching them
+    together is still polite to each one) and wait for all of them. True if all worked."""
+    with st.spinner(f"Fetching from {len(names)} source(s) at the same time: {', '.join(names)} ..."):
+        running = [(n, subprocess.Popen([sys.executable, n], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        text=True, cwd=PROJECT, encoding="utf-8", errors="replace"))
+                   for n in names]
+        outputs = [(n, p.communicate()[0]) for n, p in running]  # waits for each one to finish
+        finished = [(n, p.returncode, out) for (n, out), (_, p) in zip(outputs, running)]
+    results = [show_result(n, code, out) for n, code, out in finished]
+    return all(results)
+
+
 def fetch_scripts():
     """The job sources switched on in the settings."""
-    return [f for f, key, default in [("fetch_greenhouse.py", "use_greenhouse", True), ("fetch_hse.py", "use_hse", True),
+    return [f for f, key, default in [("fetch_boards.py", "use_greenhouse", True), ("fetch_hse.py", "use_hse", True),
                                        ("fetch_jooble.py", "use_jooble", False)] if S.get(key, default)]
 
 
@@ -321,6 +340,8 @@ Got a newer CV later? Drop it in and choose **Add only what's new**.""")
 1. Open **Where, what pay, and do you need a visa?** the first time: set the places to search,
    currency, salary floor, and whether you need visa sponsorship. Add companies' career boards, and switch on
    **Jooble** (with your search words) to reach small companies and recruiters too.
+   Need sponsorship? Open **🔎 Find sponsors' own career sites**, click **Search sponsors' job boards**,
+   tick the employers to add (paste a careers page for any not found) and add them to your boards.
 2. Set how recent the jobs must be and how closely they must match, then **💾 Save settings**.
 3. Click **▶ Run everything**. It fetches new jobs, scores them against your skills and builds your shortlist.""")
         with st.container(border=True):
@@ -626,7 +647,7 @@ with tab_find:
                                   SPONSORSHIP, help="Untick if you can already work where you are searching.")
         st.markdown("**Job sources**")
         y1, y2 = st.columns(2)
-        use_greenhouse = y1.checkbox("Company career boards (Greenhouse, list below)", bool(S.get("use_greenhouse", True)))
+        use_greenhouse = y1.checkbox("Company career boards (list below)", bool(S.get("use_greenhouse", True)))
         use_hse = y2.checkbox("HSE: Ireland's health service", bool(S.get("use_hse", True)))
         has_key = bool(os.environ.get("JOOBLE_API_KEY"))
         use_jooble = st.checkbox("Jooble: job search engine covering thousands of sites, including small companies "
@@ -649,11 +670,68 @@ with tab_find:
         elif use_jooble:
             st.caption("✔ Jooble key found. Jooble sends a short snippet of each ad; the app opens each ad "
                        "(one per second) to read the full text, so fetching takes a few minutes.")
-        st.caption("Career boards: find a company's board token in its jobs page address, "
-                   "boards.greenhouse.io/**token**. Add a row per company.")
+        st.caption("Career boards: one row per company. **ats** is its hiring system and **board_token** the "
+                   "name in its jobs page address: boards.greenhouse.io/**token**, jobs.lever.co/**token**, "
+                   "jobs.ashbyhq.com/**token**, apply.workable.com/**token**. For any other careers page, choose "
+                   "**careers_page** and paste the page's address as the token. **Find sponsors' career sites** "
+                   "below fills this in for you.")
         companies_df = st.data_editor(pd.read_csv(COMPANIES).fillna(""), num_rows="dynamic", use_container_width=True,
                                       key="ed-companies",
-                                      column_config={"ats": st.column_config.SelectboxColumn(options=["greenhouse"])})
+                                      column_config={"ats": st.column_config.SelectboxColumn(options=ats_feeds.ATS_TYPES)})
+
+    if SPONSORSHIP:
+        with st.expander("🔎 Find sponsors' own career sites: read vacancies straight from employers that sponsor"):
+            st.caption("For each employer on the permit list with enough permits this year, the app checks whether it "
+                       "has a public job board on Greenhouse, Workable, Lever or Ashby. **match** = the board's "
+                       "company name matches; **check** = found by the employer's name only, so open the board to "
+                       "confirm. For employers with no board found, paste their careers page address. Tick the ones "
+                       "to add, then add them to your career boards.")
+            f1, f2 = st.columns([1, 2])
+            min_permits = f1.number_input("Employers with at least this many permits", 1, 300,
+                                          int(S.get("sponsor_board_min_permits", 10)))
+            if f2.button("🔎 Search sponsors' job boards", type="primary",
+                         help="The first run checks several hundred employers and takes 10-20 minutes; "
+                              "later runs only check employers not checked before"):
+                settings.save({"sponsor_board_min_permits": int(min_permits)})
+                run_scripts("find_sponsor_boards.py")
+            boards_file = Path("data/processed/sponsor_boards.csv")
+            if boards_file.exists():
+                found = pd.read_csv(boards_file, dtype=str).fillna("")
+                offer = found[found["added"] != "yes"].copy()
+                offer["permits"] = pd.to_numeric(offer["permits"], errors="coerce")
+                offer = offer.sort_values(["status", "permits"], ascending=[True, False],
+                                          key=lambda c: c.map({"match": 0, "check": 1, "not found": 2})
+                                          if c.name == "status" else c)
+                offer.insert(0, "add", offer["status"] == "match")
+                st.caption(f"{(found['status'] != 'not found').sum()} boards found for {len(found)} employers checked; "
+                           f"{(found['added'] == 'yes').sum()} already added.")
+                picked = st.data_editor(
+                    offer[["add", "employer", "permits", "status", "ats", "board_token", "board_name", "jobs_now",
+                           "careers_page"]],
+                    hide_index=True, use_container_width=True, key="ed-sponsor-boards",
+                    disabled=["employer", "permits", "status", "ats", "board_token", "board_name", "jobs_now"],
+                    column_config={"add": st.column_config.CheckboxColumn(width="small"),
+                                   "permits": st.column_config.NumberColumn(width="small"),
+                                   "jobs_now": st.column_config.TextColumn("jobs now", width="small"),
+                                   "careers_page": st.column_config.LinkColumn(
+                                       "careers page (paste if not found)", width="medium")})
+                chosen = picked[picked["add"] & ((picked["board_token"] != "") | (picked["careers_page"] != ""))]
+                if st.button(f"➕ Add {len(chosen)} ticked employer(s) to my career boards", disabled=chosen.empty):
+                    current = pd.read_csv(COMPANIES, dtype=str).fillna("")
+                    new_rows = [{"company": r["employer"],
+                                 "ats": r["ats"] if r["board_token"] else "careers_page",
+                                 "board_token": r["board_token"] or r["careers_page"].strip(),
+                                 "notes": f"sponsor: {int(r['permits'])} permits in 2026"}
+                                for _, r in chosen.iterrows()]
+                    new_rows = [r for r in new_rows if r["board_token"] not in set(current["board_token"])]
+                    pd.concat([current, pd.DataFrame(new_rows)], ignore_index=True).to_csv(COMPANIES, index=False)
+                    found.loc[found["employer"].isin(chosen["employer"]), "added"] = "yes"
+                    found.to_csv(boards_file, index=False)
+                    st.session_state["flash_find"] = (f"Added {len(new_rows)} employer(s) to your career boards. "
+                                                      "Click ▶ Run everything to read their jobs.")
+                    st.rerun()
+    if "flash_find" in st.session_state:
+        st.success(st.session_state.pop("flash_find"))
 
     c1, c2, c3 = st.columns(3)
     days = c1.select_slider("Jobs posted in the last…", options=[1, 3, 7, 14, 30, 60, 90],
@@ -687,9 +765,10 @@ with tab_find:
         st.warning("Switch on at least one job source above.")
     b1, b2, b3, b4 = st.columns(4)
     if b1.button("▶ Run everything", type="primary", help="Fetch new jobs, then score and rank them"):
-        run_scripts(*fetch_scripts(), "score_jobs.py", "add_sponsors.py")
+        run_together(*fetch_scripts())
+        run_scripts("score_jobs.py", "add_sponsors.py")  # a source that failed keeps its last jobs
     if b2.button("Fetch new jobs"):
-        run_scripts(*fetch_scripts())
+        run_together(*fetch_scripts())
     if b3.button("Score & rank"):
         run_scripts("score_jobs.py", "add_sponsors.py")
     if SPONSORSHIP and b4.button("Update sponsor list", help="After downloading a new month of the DETE file into data/raw/"):
