@@ -62,6 +62,34 @@ st.markdown("""
 .stat b { display: block; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 2rem;
   color: #7FD8B6; line-height: 1.1; }
 .stat span { font-size: .8rem; letter-spacing: .04em; opacity: .85; }
+/* Calls to action: primary buttons are solid green with a lift; downloads get a green outline.
+   Secondary buttons stay quiet so the next step is always the one that stands out. */
+[data-testid="stBaseButton-primary"] { font-weight: 600; letter-spacing: .01em; padding: .55rem 1.3rem;
+  box-shadow: 0 4px 14px rgba(11,122,92,.32); transition: transform .15s ease, box-shadow .15s ease; }
+[data-testid="stBaseButton-primary"]:hover:not(:disabled) { transform: translateY(-1px);
+  box-shadow: 0 7px 20px rgba(11,122,92,.42); }
+[data-testid="stBaseButton-primary"]:disabled { box-shadow: none; }
+[data-testid="stDownloadButton"] button { border: 1.5px solid #0B7A5C; color: #0B7A5C; font-weight: 600; }
+[data-testid="stDownloadButton"] button:hover { background: rgba(11,122,92,.08); }
+/* CV upload call to action: dark ink card, green accent, dashed drop zone */
+.st-key-cv_cta { background: linear-gradient(135deg, #0F2A2E 0%, #14383D 100%); border-radius: .6rem;
+  padding: 1.6rem 1.8rem 1.2rem; box-shadow: 0 10px 30px rgba(15,42,46,.18); animation: rise .6s ease-out .3s both;
+  border-left: 6px solid #7FD8B6; }
+.cta-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: .75rem; letter-spacing: .14em;
+  text-transform: uppercase; color: #7FD8B6; }
+.cta-title { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 2.1rem; line-height: 1.1;
+  color: #F2F4EF; margin: .35rem 0 .4rem; }
+.cta p { color: #C9D8D2; font-weight: 300; font-size: 1.02rem; max-width: 44rem; margin: 0 0 .4rem; }
+.st-key-cv_cta [data-testid="stFileUploaderDropzone"] { background: rgba(127,216,182,.08);
+  border: 2px dashed #7FD8B6; border-radius: .5rem; padding: 1.1rem; }
+.st-key-cv_cta [data-testid="stFileUploaderDropzone"]:hover { background: rgba(127,216,182,.16); }
+.st-key-cv_cta [data-testid="stFileUploaderDropzone"] span,
+.st-key-cv_cta [data-testid="stFileUploaderDropzone"] small,
+.st-key-cv_cta [data-testid="stFileUploaderFileName"] { color: #E8EFE9; }
+.st-key-cv_cta [data-testid="stFileUploaderDropzone"] button { background: #7FD8B6; border: none;
+  padding: .55rem 1.3rem; box-shadow: 0 4px 14px rgba(127,216,182,.25); }
+.st-key-cv_cta [data-testid="stFileUploaderDropzone"] button,
+.st-key-cv_cta [data-testid="stFileUploaderDropzone"] button * { color: #0F2A2E; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -253,21 +281,85 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 if not MASTER.exists():
-    st.info("👋 **Start here:** upload your CV in **1. My CV**. Everything else is built from it.")
+    st.info("👋 **Start here:** upload your CV in **1. My CV**. Everything else is built from it. "
+            "New to the app? Read **❓ How to use** first.")
 
-tab_cv, tab_find, tab_short, tab_apps = st.tabs(
-    ["1. My CV", "2. Find jobs", "3. Shortlist & documents", "4. My applications"])
+tab_help, tab_cv, tab_find, tab_short, tab_apps = st.tabs(
+    ["❓ How to use", "1. My CV", "2. Find jobs", "3. Shortlist & documents", "4. My applications"],
+    default="1. My CV" if MASTER.exists() else "❓ How to use")  # new users open on the instructions
+
+# ---------- How to use -------------------------------------------------------------
+with tab_help:
+    st.subheader("How to use the app")
+    st.markdown("Work through the tabs in order the first time. After that, most days you only need "
+                "**2. Find jobs → ▶ Run everything** and then **3. Shortlist**.")
+    h1, h2 = st.columns(2)
+    with h1:
+        with st.container(border=True):
+            st.markdown("""**1. My CV** · *once, then whenever your CV changes*
+1. Drop your Word CV in the green box. The app fills in every section for you.
+2. Check each part (About me, Experience, Projects, Education) and fix anything in the wrong place.
+   Mark study as 🎓 so it's never called a job.
+3. Click **💾 Save my CV**.
+4. In **Skills list**, click **➕ Add them to the list**, then **✔ Tick exactly the skills found in my CV**,
+   and tick any others you really have. Click **💾 Save skills list**.
+
+Got a newer CV later? Drop it in and choose **Add only what's new**.""")
+        with st.container(border=True):
+            st.markdown("""**3. Shortlist & documents** · *for each job you like*
+1. Choose a job. Read **You have** and **Missing**.
+2. **📄 Make tailored CV**: preview it, then **⬇ Download**.
+3. **✉ Write cover letter**, or answer the form's questions: they're filled in from the
+   application form when the app finds one; you can also upload a form or paste questions.
+4. Read every warning under the document and fix it before sending.
+5. After you apply, click **✔ I've applied** so you never apply twice.""")
+    with h2:
+        with st.container(border=True):
+            st.markdown("""**2. Find jobs** · *every few days*
+1. Open **Where, what pay, and do you need a visa?** the first time: set the places to search,
+   currency, salary floor, and whether you need visa sponsorship. Add companies' career boards.
+2. Set how recent the jobs must be and how closely they must match, then **💾 Save settings**.
+3. Click **▶ Run everything**. It fetches new jobs, scores them against your skills and builds your shortlist.""")
+        with st.container(border=True):
+            st.markdown("""**4. My applications** · *as replies come in*
+
+Change each job's status (interview, offer, rejected, no reply), add notes, then **💾 Save changes**.""")
+        with st.container(border=True):
+            st.markdown("""**The AI model** · *left sidebar*
+- **local** runs on your computer with [LM Studio](https://lmstudio.ai/): free and private.
+  Start LM Studio's server before writing letters or answers.
+- Cloud models are faster but send your CV evidence to that company; their API key goes in an
+  environment variable, never in a file.""")
+    with st.expander("Good to know"):
+        st.markdown("""- **Nothing is invented.** The CV only uses lines from your saved CV, and every AI sentence must
+  point to your evidence. Checks flag invented numbers, skills you don't have, and projects described as jobs.
+- **Some employers forbid AI.** HSE forms say *"Do not use AI to complete the application form"*. For those,
+  use **📝 Make answer plan (no AI)**: the best examples from your CV for each question, for you to write up.
+- **Your data stays here.** Your CV (`cv_master.json`), the jobs and your applications are kept in this folder
+  and are never uploaded to GitHub.
+- **Something went wrong?** Each button shows the script's output; a red ❌ box explains the error.
+  Close the black window and double-click `start_app.bat` to restart.""")
 
 # ---------- 1. My CV --------------------------------------------------------------
 with tab_cv:
     vocab = pd.read_csv(VOCAB)
     if "flash" in st.session_state:
         st.success(st.session_state.pop("flash"))
-    with st.expander("📤 Start from a Word CV (.docx)", expanded=not MASTER.exists()):
-        st.caption("The app reads your CV's sections, roles and bullet points. CVs come in many layouts, "
-                   "so check every part below after importing and fix anything in the wrong place.")
-        upload = st.file_uploader("Your CV as a Word file", type=["docx"])
+    with st.container(key="cv_cta"):  # the call to action: a dark card with a drop zone
+        has_cv = MASTER.exists()
+        st.markdown(f"""
+<div class="cta">
+  <div class="cta-eyebrow">{"Update your CV" if has_cv else "Step 1 · Start here"}</div>
+  <div class="cta-title">{"Got a newer CV? Drop it in." if has_cv else "Drop your Word CV here."}</div>
+  <p>{"Add only what's new to your CV, or replace it. Nothing changes until you choose." if has_cv else
+      "The app reads it and fills in every section below: your summary, jobs, bullet points, skills, "
+      "education and certificates. Then you check it and save."}</p>
+</div>""", unsafe_allow_html=True)
+        upload = st.file_uploader("Your CV as a Word file (.docx)", type=["docx"], label_visibility="collapsed")
+    with st.container(border=upload is not None):
         if upload is not None:
+            st.caption("CVs come in many layouts, so check every part below after importing and fix anything "
+                       "in the wrong place.")
             imported = cv_import.import_docx(upload, vocab)
             st.markdown(f"**Found:** {imported['name'] or '(no name)'} · {len(imported['summary'])} summary "
                         f"sentences · {len(imported['skills'])} skills · {len(imported['experience'])} roles "
@@ -410,7 +502,7 @@ with tab_cv:
                             st.markdown(f"**NEW: {r['repo']}** (updated {r['pushed'][:10]})")
                             st.json(r["draft"])
                             a, b = st.columns(2)
-                            if a.button("Add to my CV", key=f"add-{r['repo']}"):
+                            if a.button("Add to my CV", key=f"add-{r['repo']}", type="primary"):
                                 sp.add_project(r["draft"])
                                 reset_draft()
                                 st.success("Added. Edit its wording in the table above.")
@@ -425,7 +517,7 @@ with tab_cv:
                             st.markdown(f"Your CV bullet now: {r['current_bullet']}")
                             if r["findings"]:
                                 new = st.radio("Key findings in the README now", r["findings"], key=f"f-{r['repo']}")
-                                if st.button("Use as my CV bullet", key=f"use-{r['repo']}"):
+                                if st.button("Use as my CV bullet", key=f"use-{r['repo']}", type="primary"):
                                     sp.update_bullet(r["repo"], new)
                                     reset_draft()
                                     st.success("Bullet updated.")
@@ -474,7 +566,7 @@ with tab_cv:
                 new.to_csv(VOCAB, index=False)
                 st.success(f"Ticked {len(found)} skills: {', '.join(sorted(found)) or 'none'}.")
                 st.rerun()
-            if v2.button("💾 Save skills list"):
+            if v2.button("💾 Save skills list", type="primary"):
                 out = edited_vocab.drop(columns=["in my CV"]).dropna(subset=["skill"])
                 out = out[out["skill"].astype(str).str.strip() != ""].copy()
                 out["i_have_it"] = out["i_have_it"].fillna(False).map({True: "yes", False: "no"})
@@ -551,7 +643,7 @@ with tab_find:
     min_skills = c5.slider("At least this many matching skills", 1, 8, int(S.get("min_skills_matched", 3)))
     internal = c6.checkbox("Include HSE internal-only jobs", bool(S.get("include_internal", False)),
                            help="Tick only if you work for the HSE or a Section 38 agency")
-    if st.button("💾 Save settings"):
+    if st.button("💾 Save settings", type="primary"):
         companies_out = companies_df[companies_df["board_token"].astype(str).str.strip() != ""].copy()
         companies_out["ats"] = companies_out["ats"].replace("", "greenhouse")
         companies_out.to_csv(COMPANIES, index=False)
@@ -619,7 +711,7 @@ with tab_short:
         st.subheader("Tailored CV")
         import tailor_cv
         reword = st.checkbox("Suggest AI rewording of the chosen bullets (you approve each one)")
-        if st.button("📄 Make tailored CV"):
+        if st.button("📄 Make tailored CV", type="primary"):
             master = json.loads(tailor_cv.MASTER.read_text(encoding="utf-8"))
             vocab = pd.read_csv(tailor_cv.VOCAB)
             ctx = tailor_cv.job_context(job)
@@ -654,7 +746,7 @@ with tab_short:
                         st.error("Rejected automatically: changes the facts.")
                     elif st.checkbox("Use the reworded version", key=f"rw-{slug}-{i}"):
                         accepted.add(i)
-            if st.button("✅ Build CV with my choices"):
+            if st.button("✅ Build CV with my choices", type="primary"):
                 master = json.loads(tailor_cv.MASTER.read_text(encoding="utf-8"))
                 vocab = pd.read_csv(tailor_cv.VOCAB)
                 content, log = tailor_cv.apply_rewordings(pending["content"], pending["proposals"], accepted)
@@ -704,12 +796,12 @@ with tab_short:
             if st.checkbox("Write AI answers anyway (my decision)", key=f"ai-anyway-{slug}"):
                 no_ai = False
         w1, w2, w3 = st.columns(3)
-        if w3.button("📝 Make answer plan (no AI)", disabled=not questions,
+        if w3.button("📝 Make answer plan (no AI)", disabled=not questions, type="primary" if no_ai else "secondary",
                      help="The best CV examples for each question, under Situation / Task / Action / Result"):
             st.session_state[f"plan-{slug}"] = write_application.answer_plan(job, questions)
         for col, mode, label in [(w1, "cover", "✉ Write cover letter"),
                                  (w2, "hse", f"🧩 Write answers to {len(questions)} question(s)")]:
-            if col.button(label, disabled=(mode == "hse" and (not questions or no_ai))):
+            if col.button(label, disabled=(mode == "hse" and (not questions or no_ai)), type="primary"):
                 try:
                     with st.spinner("Writing with the AI model (a minute or two per answer on a laptop)…"):
                         st.session_state[f"doc-{mode}"] = write_application.write_document(job, mode, questions)
@@ -752,7 +844,7 @@ with tab_short:
 
         st.divider()
         import track_applications as ta
-        if st.button("✔ I've applied: log this job"):
+        if st.button("✔ I've applied: log this job", type="primary"):
             log, message = ta.log_job(ta.load_log(), job)
             ta.save_log(log)
             st.success(message + "  (It leaves the shortlist next time you score.)")
@@ -772,7 +864,7 @@ with tab_apps:
                                 disabled=[c for c in log.columns if c not in ("status", "notes")],
                                 column_config={"status": st.column_config.SelectboxColumn(options=ta.STATUSES),
                                                "url": st.column_config.LinkColumn(display_text="open")})
-        if st.button("💾 Save changes"):
+        if st.button("💾 Save changes", type="primary"):
             changed = edited["status"] != log["status"]
             edited.loc[changed, "status_date"] = date.today().isoformat()
             ta.save_log(edited)
