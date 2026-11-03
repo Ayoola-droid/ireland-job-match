@@ -670,10 +670,10 @@ with tab_short:
         questions = [q.strip() for q in re.split(r"\n\s*\n", questions_text) if q.strip()]
         no_ai = bool(st.session_state.get(f"no-ai-{slug}", str(job.get("form_no_ai", "")).lower() == "true"))
         if no_ai:
-            st.error("**This employer's form says not to use AI to complete it** (the HSE's says: \"Your application "
-                     "must be your own work … Do not use AI to complete the application form\"). AI answers are "
-                     "switched off for this job. Use the answer plan instead: it picks the best examples from your "
-                     "CV for each question, and you write the answers yourself.")
+            st.warning("**This employer's form says not to use AI to complete it.** The answer plan (no AI) picks your "
+                       "best CV examples for each question so you can write the answers yourself.")
+            if st.checkbox("Write AI answers anyway (my decision)", key=f"ai-anyway-{slug}"):
+                no_ai = False
         w1, w2, w3 = st.columns(3)
         if w3.button("📝 Make answer plan (no AI)", disabled=not questions,
                      help="The best CV examples for each question, under Situation / Task / Action / Result"):
