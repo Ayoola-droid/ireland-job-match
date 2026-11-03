@@ -68,6 +68,26 @@ def match_applications(jobs, log):
     return jobs
 
 
+def log_job(log, job, today=None):
+    """Add one job to the log without asking questions (used by the app). Returns (log, message)."""
+    matched = match_applications(pd.DataFrame([job]), log).iloc[0]
+    if matched["applied_on"]:
+        return log, f"Already in your log (applied {matched['applied_on']}). Nothing added."
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", f"{job['company']}_{job['job_id']}").strip("_")
+    cv_file = f"CV_{slug}.docx" if Path("output", f"CV_{slug}.docx").exists() else ""
+    today = today or date.today().isoformat()
+    row = {"job_id": str(job["job_id"]), "source": job["source"], "company": job["company"],
+           "title": job["title"], "url": job["url"], "applied_on": today, "cv_file": cv_file,
+           "status": "applied", "status_date": today, "notes": ""}
+    return pd.concat([log, pd.DataFrame([row])], ignore_index=True), \
+        f"Logged: {job['company']} | {job['title']} | CV: {cv_file or 'none in output/'}"
+
+
+def save_log(log):
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    log[COLUMNS].to_csv(LOG, index=False)
+
+
 def mark_applied(log):
     ranked = pd.read_csv(RANKED)
     shortlist = match_applications(ranked[ranked["shortlist"]], log).reset_index(drop=True)
@@ -143,8 +163,7 @@ def main():
             show_log(log)
         else:
             break
-        LOG.parent.mkdir(parents=True, exist_ok=True)
-        log[COLUMNS].to_csv(LOG, index=False)
+        save_log(log)
 
 
 if __name__ == "__main__":
