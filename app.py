@@ -112,8 +112,8 @@ def run_scripts(*names):
 
 def fetch_scripts():
     """The job sources switched on in the settings."""
-    return [f for f, key in [("fetch_greenhouse.py", "use_greenhouse"), ("fetch_hse.py", "use_hse")]
-            if S.get(key, True)]
+    return [f for f, key, default in [("fetch_greenhouse.py", "use_greenhouse", True), ("fetch_hse.py", "use_hse", True),
+                                       ("fetch_jooble.py", "use_jooble", False)] if S.get(key, default)]
 
 
 def read_csv(path):
@@ -307,17 +307,20 @@ with tab_help:
 Got a newer CV later? Drop it in and choose **Add only what's new**.""")
         with st.container(border=True):
             st.markdown("""**3. Shortlist & documents** · *for each job you like*
-1. Choose a job. Read **You have** and **Missing**.
-2. **📄 Make tailored CV**: preview it, then **⬇ Download**.
-3. **✉ Write cover letter**, or answer the form's questions: they're filled in from the
+1. Found a job yourself? Open **➕ Add a job by link** at the top, paste its address and click
+   **🔍 Read this job**, then **➕ Add and score this job**.
+2. Choose a job. Read **You have** and **Missing**.
+3. **📄 Make tailored CV**: preview it, then **⬇ Download**.
+4. **✉ Write cover letter**, or answer the form's questions: they're filled in from the
    application form when the app finds one; you can also upload a form or paste questions.
-4. Read every warning under the document and fix it before sending.
-5. After you apply, click **✔ I've applied** so you never apply twice.""")
+5. Read every warning under the document and fix it before sending.
+6. After you apply, click **✔ I've applied** so you never apply twice.""")
     with h2:
         with st.container(border=True):
             st.markdown("""**2. Find jobs** · *every few days*
 1. Open **Where, what pay, and do you need a visa?** the first time: set the places to search,
-   currency, salary floor, and whether you need visa sponsorship. Add companies' career boards.
+   currency, salary floor, and whether you need visa sponsorship. Add companies' career boards, and switch on
+   **Jooble** (with your search words) to reach small companies and recruiters too.
 2. Set how recent the jobs must be and how closely they must match, then **💾 Save settings**.
 3. Click **▶ Run everything**. It fetches new jobs, scores them against your skills and builds your shortlist.""")
         with st.container(border=True):
@@ -625,6 +628,21 @@ with tab_find:
         y1, y2 = st.columns(2)
         use_greenhouse = y1.checkbox("Company career boards (Greenhouse, list below)", bool(S.get("use_greenhouse", True)))
         use_hse = y2.checkbox("HSE: Ireland's health service", bool(S.get("use_hse", True)))
+        has_key = bool(os.environ.get("JOOBLE_API_KEY"))
+        use_jooble = st.checkbox("Jooble: job search engine covering thousands of sites, including small companies "
+                                 "and recruiters", bool(S.get("use_jooble", False)))
+        j1, j2 = st.columns([2, 1])
+        jooble_words = j1.text_input("Jooble search words (separate with commas)",
+                                     ", ".join(S.get("jooble_keywords", ["data analyst", "business analyst"])),
+                                     help="Each one is a separate search, e.g. data analyst, reporting analyst, "
+                                          "marketing executive")
+        jooble_location = j2.text_input("Jooble location", S.get("jooble_location", "Ireland"))
+        if use_jooble and not has_key:
+            st.warning("Jooble needs a free API key: request one at https://jooble.org/api/about, then in "
+                       "PowerShell run `setx JOOBLE_API_KEY \"your-key\"`, and close and reopen the app.")
+        elif use_jooble:
+            st.caption("✔ Jooble key found. Jooble sends a short snippet of each ad; the app opens each ad "
+                       "(one per second) to read the full text, so fetching takes a few minutes.")
         st.caption("Career boards: find a company's board token in its jobs page address, "
                    "boards.greenhouse.io/**token**. Add a row per company.")
         companies_df = st.data_editor(pd.read_csv(COMPANIES).fillna(""), num_rows="dynamic", use_container_width=True,
@@ -651,7 +669,9 @@ with tab_find:
                        "min_skills_matched": min_skills, "include_internal": internal,
                        "location_words": location_words.strip(" |") or "ireland", "location_label": location_label,
                        "currency": currency, "writing_english": english, "app_name": app_name or "Job Match",
-                       "check_sponsorship": sponsorship, "use_greenhouse": use_greenhouse, "use_hse": use_hse})
+                       "check_sponsorship": sponsorship, "use_greenhouse": use_greenhouse, "use_hse": use_hse,
+                       "use_jooble": use_jooble, "jooble_location": jooble_location.strip() or "Ireland",
+                       "jooble_keywords": [w.strip() for w in jooble_words.split(",") if w.strip()]})
         st.success("Saved. Click 'Run everything' (new places or sources) or 'Score & rank' to apply them.")
         st.rerun()
 
@@ -678,18 +698,63 @@ with tab_find:
 
 # ---------- 3. Shortlist & documents ----------------------------------------------
 with tab_short:
+    import job_from_url
+    with st.expander("➕ Add a job by link: any job you found yourself", expanded=False):
+        st.caption("Paste the address of a job ad (a company's careers page, a recruiter's site…). The app reads "
+                   "it, scores it against your skills and adds it to the list below. If the page can't be read, "
+                   "paste the ad's text instead.")
+        u1, u2 = st.columns([4, 1])
+        url = u1.text_input("Job ad address", placeholder="https://…", label_visibility="collapsed")
+        if u2.button("🔍 Read this job", type="primary", disabled=not url.strip()):
+            try:
+                with st.spinner("Reading the page…"):
+                    st.session_state["new_job"] = job_from_url.read_job_page(url.strip())
+            except Exception as error:
+                st.session_state["new_job"] = {"title": "", "company": "", "location": "", "description": "",
+                                               "url": url.strip(), "first_published": None}
+                st.warning(f"Couldn't read that page ({error.__class__.__name__}). Paste the ad's text below.")
+        if st.button("…or paste a job ad's text instead"):
+            st.session_state["new_job"] = {"title": "", "company": "", "location": "", "description": "",
+                                           "url": url.strip(), "first_published": None}
+        new = st.session_state.get("new_job")
+        if new is not None:
+            n1, n2, n3 = st.columns(3)
+            new["title"] = n1.text_input("Job title", new["title"])
+            new["company"] = n2.text_input("Employer", new["company"])
+            new["location"] = n3.text_input("Location", new["location"])
+            new["description"] = st.text_area("The ad's text (check it's the whole ad)", new["description"], height=200)
+            ready = new["title"].strip() and new["company"].strip() and len(new["description"]) > 100
+            if not ready:
+                st.caption("Fill in the title, the employer and the ad's text to add it.")
+            if st.button("➕ Add and score this job", type="primary", disabled=not ready):
+                job_from_url.add_job(new)
+                st.session_state.pop("new_job")
+                if run_scripts("score_jobs.py", "add_sponsors.py"):
+                    st.session_state["flash_short"] = (f"Added {new['title']} at {new['company']}. "
+                                                       "It's in the list below, marked 'added by you'.")
+                    st.rerun()
+    if "flash_short" in st.session_state:
+        st.success(st.session_state.pop("flash_short"))
+
     ranked = read_csv("data/processed/jobs_ranked.csv")
+    if ranked is not None:  # the jobs you added yourself stay on the list (unless you've applied)
+        mine = (ranked["source"] == "manual") & ranked["ok_not_applied"]
+        ranked = ranked.assign(on_list=ranked["shortlist"] | mine)
     if not MASTER.exists():
         st.info("Add your CV in '1. My CV' first.")
-    elif ranked is None or not ranked["shortlist"].any():
-        st.info("No shortlist yet. Go to '2. Find jobs' and click 'Run everything'.")
+    elif ranked is None or not ranked["on_list"].any():
+        st.info("No shortlist yet. Go to '2. Find jobs' and click 'Run everything', or add a job by link above.")
     else:
-        short = ranked[ranked["shortlist"]].reset_index(drop=True)
+        short = ranked[ranked["on_list"]].reset_index(drop=True)
         columns = ["company", "title", "days_old", "skill_score"] + (["sponsor_level"] if SPONSORSHIP else [])
         show = short[columns].copy()
         show["skill_score"] = (show["skill_score"] * 100).round()
         show["pay"] = short.apply(lambda j: f"{money(j['pay_min'])}–{money(j['pay_max'])}" if pd.notna(j.get("pay_min"))
                                   else "not stated", axis=1)
+        tests = [c for c in short.columns if c.startswith("ok_")]
+        show["note"] = short.apply(lambda j: ("added by you" + ("" if j["shortlist"] else ": misses " + ", ".join(
+            t[3:] for t in tests if not j[t]))) if j["source"] == "manual" else
+            ("via " + str(j.get("found_via") or "Jooble") if j["source"] == "jooble" else ""), axis=1)
         show["url"] = short["url"]
         st.dataframe(show, hide_index=True, use_container_width=True,
                      column_config={"url": st.column_config.LinkColumn("ad", display_text="open"),
