@@ -258,6 +258,73 @@ def complete(cv, github_user=""):
     return cv
 
 
+# ---------- 5. add only what's new to an existing CV -------------------------------
+def _tokens(text):
+    stop = {"and", "the", "of", "in", "at", "for", "to", "a", "an", "with", "on", "i", "my"}
+    return {w.rstrip("s") for w in re.findall(r"[a-z0-9]+", str(text).lower()) if w not in stop}
+
+
+def _same(a, b, cutoff):
+    """Two pieces of text say the same thing: most of the shorter one's words are in the longer one,
+    or the letters mostly match (catches 'Centre'/'Center', 'analysed'/'analyzed')."""
+    from difflib import SequenceMatcher
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return False
+    overlap = len(ta & tb) / min(len(ta), len(tb))
+    letters = SequenceMatcher(None, " ".join(sorted(ta)), " ".join(sorted(tb))).ratio()
+    return overlap >= cutoff or letters >= 0.85
+
+
+def _is_new(item, existing, cutoff=0.7):
+    return not any(_same(item, e, cutoff) for e in existing)
+
+
+def _same_role(a, b):
+    """Same role when the job titles or the employers share most of their words (dates may differ)."""
+    ta, oa = (a.split("|") + [""])[:2]
+    tb, ob = (b.split("|") + [""])[:2]
+    return _same(ta, tb, 0.6) and (_same(oa, ob, 0.5) or not oa.strip() or not ob.strip())
+
+
+def merge_new(current, imported, include=None):
+    """Add to `current` only what `imported` has and `current` doesn't: new contact lines, summary
+    sentences, skills, roles, bullet points, projects, education and certificates. Nothing already in
+    your CV is changed or removed. With `include` (a set of labels from a first call), only those
+    items are added. Returns (merged CV, list of labels of what was / would be added)."""
+    import copy
+    cv = copy.deepcopy(current)
+    added = []
+
+    def take(label):
+        if include is None or label in include:
+            added.append(label)
+            return True
+        return False
+
+    for key in ("contact", "skills", "education", "certificates"):
+        for item in imported.get(key, []):
+            if _is_new(item, cv.get(key, []), 0.6) and take(f"{key}: {item}"):
+                cv.setdefault(key, []).append(item)
+    for s in imported.get("summary", []):
+        if _is_new(s["text"], [x["text"] for x in cv.get("summary", [])]) and take(f"summary: {s['text']}"):
+            cv["summary"].append({**s, "always": False})
+    for p in imported.get("projects", []):
+        if _is_new(p["title"], [x["title"] for x in cv.get("projects", [])], 0.6) and take(f"project: {p['title']}"):
+            cv["projects"].append(p)
+    for role in imported.get("experience", []):
+        match = next((r for r in cv["experience"] if _same_role(r["heading"], role["heading"])), None)
+        if match is None:
+            if take(f"role: {role['heading']} ({len(role['bullets'])} bullets)"):
+                cv["experience"].append(role)
+            continue
+        for b in role["bullets"]:
+            if (_is_new(b["text"], [x["text"] for x in match["bullets"]], 0.6)
+                    and take(f"bullet for {match['heading'].split('|')[0].strip()}: {b['text']}")):
+                match["bullets"].append(b)
+    return cv, added
+
+
 def import_docx(path, vocab=None):
     vocab = pd.read_csv(VOCAB) if vocab is None else vocab
     return complete(auto_tag(parse_lines(read_lines(path)), vocab))

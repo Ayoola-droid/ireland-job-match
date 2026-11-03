@@ -261,6 +261,8 @@ tab_cv, tab_find, tab_short, tab_apps = st.tabs(
 # ---------- 1. My CV --------------------------------------------------------------
 with tab_cv:
     vocab = pd.read_csv(VOCAB)
+    if "flash" in st.session_state:
+        st.success(st.session_state.pop("flash"))
     with st.expander("📤 Start from a Word CV (.docx)", expanded=not MASTER.exists()):
         st.caption("The app reads your CV's sections, roles and bullet points. CVs come in many layouts, "
                    "so check every part below after importing and fix anything in the wrong place.")
@@ -274,9 +276,36 @@ with tab_cv:
                         f"{len(imported['certificates'])} certificates")
             for r in imported["experience"]:
                 st.caption(f"{'🎓' if r['kind'] == 'study' else '💼'} {r['heading']} ({len(r['bullets'])} bullets)")
+            how = "Replace my whole CV"
             if MASTER.exists():
+                how = st.radio("What should happen?", ["Add only what's new (keep my CV)", "Replace my whole CV"],
+                               horizontal=True)
+            if how.startswith("Add"):
+                current = load_cv()
+                _, new_items = cv_import.merge_new(current, imported)
+                if not new_items:
+                    st.success("Nothing new: everything in this file is already in your CV.")
+                else:
+                    st.caption("Ticked items will be added; nothing already in your CV changes. Summary sentences and "
+                               "extra bullets for roles you already have start unticked, because they are often "
+                               "the same point worded differently: tick the ones that really are new.")
+                    picks = st.data_editor(
+                        pd.DataFrame({"add": [not i.startswith(("summary:", "bullet for")) for i in new_items],
+                                      "new item": new_items}),
+                        hide_index=True, use_container_width=True, disabled=["new item"], key="ed-merge",
+                        column_config={"add": st.column_config.CheckboxColumn(width="small"),
+                                       "new item": st.column_config.TextColumn(width="large")})
+                    chosen = set(picks.loc[picks["add"], "new item"])
+                    if st.button(f"➕ Add {len(chosen)} ticked item(s) to my CV", type="primary", disabled=not chosen):
+                        merged, done = cv_import.merge_new(current, imported, include=chosen)
+                        cv_import.save(cv_import.auto_tag(merged, vocab))
+                        reset_draft()
+                        st.session_state["flash"] = (f"Added {len(done)} item(s) to your CV. Check them below; if you "
+                                                     "change anything, click Save my CV.")
+                        st.rerun()
+            elif MASTER.exists():
                 st.warning("This replaces the CV the app has now (it is kept as cv_master.backup.json).")
-            if st.button("Use this as my CV", type="primary"):
+            if how.startswith("Replace") and st.button("Use this as my CV", type="primary"):
                 old = load_cv() or {}
                 for key in ("portfolio_github_user", "portfolio_ignore", "max_projects", "max_bullets_per_role"):
                     if key in old:
