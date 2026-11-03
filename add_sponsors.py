@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from clean_sponsors import name_key
 from settings import setting
 
 JOBS = Path("data/processed/jobs_scored.csv")
@@ -66,21 +67,40 @@ def main():
         rows.append({"company": a["company"], "sponsor_permits_2026": permits,
                      "sponsor_months_active": months,
                      "sponsor_level": sponsor_level(permits, months)})
+    # Companies not in company_aliases.csv (e.g. small firms found through Jooble): try the
+    # employer's own name against the DETE list. Only exact matches of the cleaned name count
+    # (also with "Ireland" added, as in "Google Ireland"), so there are no false sponsors.
+    missing = sorted(set(jobs["company"].dropna()) - {r["company"] for r in rows})
+    auto = []
+    for company in missing:
+        key = name_key(company)
+        keys = [k for k in (key, f"{key} IRELAND") if key and k in by_key.index]
+        if keys:
+            found = by_key.loc[keys]
+            permits, months = int(found["permits"].sum()), int(found["months"].max())
+            rows.append({"company": company, "sponsor_permits_2026": permits, "sponsor_months_active": months,
+                         "sponsor_level": sponsor_level(permits, months), "sponsor_match": "name match, check"})
+            auto.append(company)
     lookup = pd.DataFrame(rows)
-
-    missing = sorted(set(jobs["company"]) - set(lookup["company"]))
-    if missing:
-        print(f"  ! companies not in company_aliases.csv yet: {missing}")
+    if "sponsor_match" not in lookup:
+        lookup["sponsor_match"] = ""
+    lookup["sponsor_match"] = lookup["sponsor_match"].fillna("checked alias")
+    print(f"Matched {len(auto)} more employers to the sponsor list by name: {auto[:15]}")
+    unmatched = sorted(set(missing) - set(auto))
+    if unmatched:
+        print(f"  ! {len(unmatched)} companies not found on the sponsor list (or named differently): {unmatched[:20]}")
 
     print("Sponsor evidence per company (DETE permits, Jan-Sep 2026):")
     print(lookup.sort_values("sponsor_permits_2026", ascending=False).to_string(index=False))
 
     jobs = jobs.merge(lookup, on="company", how="left")
-    jobs["sponsor_level"] = jobs["sponsor_level"].fillna("unknown")
+    jobs["sponsor_level"] = jobs["sponsor_level"].fillna("not found")  # name not on the DETE list
     jobs["sponsor_permits_2026"] = jobs["sponsor_permits_2026"].fillna(0).astype(int)
+    jobs["sponsor_months_active"] = jobs["sponsor_months_active"].fillna(0).astype(int)
+    jobs["sponsor_match"] = jobs["sponsor_match"].fillna("")
 
     # Rank: shortlisted first, then strong sponsors, then best skill match
-    level_order = {"strong": 0, "some": 1, "not on list": 2, "unknown": 3}
+    level_order = {"strong": 0, "some": 1, "not on list": 2, "not found": 2, "unknown": 3}
     jobs["sponsor_rank"] = jobs["sponsor_level"].map(level_order)
     jobs = jobs.sort_values(["shortlist", "sponsor_rank", "skill_score"],
                             ascending=[False, True, False])
