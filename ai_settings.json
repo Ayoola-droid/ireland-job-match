@@ -1,0 +1,31 @@
+{
+  "_note": "Choose the AI 'brain' here: set active to the name of a profile. API keys are NEVER stored in this file: each cloud profile names an environment variable that holds the key (see README). Profiles marked sends_data_off_device send your CV evidence to that company.",
+  "active": "local",
+  "profiles": {
+    "local": {
+      "description": "LM Studio on this laptop (private, free)",
+      "format": "openai",
+      "url": "http://localhost:1235/v1/chat/completions",
+      "model": "gemma-2-9b-it",
+      "api_key_env": "",
+      "sends_data_off_device": false
+    },
+    "anthropic": {
+      "description": "Anthropic Claude API (cloud, paid per use)",
+      "format": "anthropic",
+      "url": "https://api.anthropic.com/v1/messages",
+      "model": "claude-haiku-5-5",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "sends_data_off_device": true
+    },
+    "openai_compatible": {
+      "description": "Any cloud service with an OpenAI-compatible chat API: fill in its URL and model name from its documentation",
+      "format": "openai",
+      "url": "https://api.example.com/v1/chat/completions",
+      "model": "MODEL-NAME-FROM-PROVIDER",
+      "api_key_env": "CLOUD_AI_API_KEY",
+      "sends_data_off_device": true
+    }
+  },
+  "temperature": 0.3
+}
