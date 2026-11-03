@@ -224,6 +224,7 @@
   "experience": [
     {
       "heading": "MSc Business Analytics (academic work) | TUS Limerick | Oct 2024 – May 2025",
+      "kind": "study",
       "bullets": [
         {
           "text": "For my master's thesis I analysed challenges and tested hypotheses with data-driven insights.",
@@ -269,6 +270,7 @@
     },
     {
       "heading": "Customer Assistant | Tesco, Ireland | Apr 2023 – Sep 2024",
+      "kind": "job",
       "bullets": [
         {
           "text": "Proactively engaged customers, communicating the latest offers and promotions.",
@@ -293,6 +295,7 @@
     },
     {
       "heading": "Sales & Marketing Manager | Fadare Enterprises, Lagos | Jul 2020 – Aug 2022",
+      "kind": "job",
       "bullets": [
         {
           "text": "Used web analytics tools, including Google Analytics and Bing Analytics, to measure KPIs and campaign performance, identify trends and make data-driven optimisations.",
@@ -349,6 +352,7 @@
     },
     {
       "heading": "Data Analyst / Administrator | Nigeria Centre for Disease Control, Lagos | Nov 2019 – May 2021",
+      "kind": "job",
       "bullets": [
         {
           "text": "Collected, cleaned and analysed large datasets on virus propagation and effect in Excel, providing insights for public health policy and decision-making.",
@@ -394,10 +398,12 @@
     },
     {
       "heading": "Statistician (Internship) | Lagos Bureau of Statistics | Sep 2018 – Aug 2019",
+      "kind": "job",
       "bullets": []
     },
     {
       "heading": "Graphic Designer | Freelance, online | Jul 2017 – Aug 2022",
+      "kind": "job",
       "bullets": [
         {
           "text": "Worked closely with clients to understand their design needs, audience and messaging, and turned them into visual concepts.",
