@@ -20,9 +20,10 @@ from docx.shared import Pt
 
 from local_ai import ask_model, describe
 from cv_import import guess_kind
+from form_questions import word_limit
 from settings import setting
 from proofread import known_words, proofread
-from tailor_cv import JOB_FILES, MASTER, RANKED, VOCAB, pick_job, relevance, requirements, words
+from tailor_cv import JOB_FILES, MASTER, RANKED, VOCAB, pick_job, relevance, requirements, tags_in, words
 
 # ---- Settings you can change ------------------------------------------------
 # (which AI model to use, and its temperature, are set in ai_settings.json)
@@ -82,7 +83,7 @@ def evidence_list(master, job_tags, job_words, weights):
     return ranked[:MAX_EVIDENCE]
 
 
-def build_prompt(mode, job, reqs, evidence, missing, name="me"):
+def build_prompt(mode, job, reqs, evidence, missing, name="me", max_words=250):
     evidence_text = "\n".join(f"[{pid}] {text}" for pid, text, _ in evidence)
     req_text = "\n".join(f"- {r}" for r in reqs) or "- (none extracted; use the job title)"
     rules = f"""RULES - follow all of them:
@@ -104,8 +105,9 @@ def build_prompt(mode, job, reqs, evidence, missing, name="me"):
                 "Three or four short paragraphs: why this role, two or three pieces of evidence that match the "
                 "requirements, and a short close. Do not include addresses or a date.")
     else:
-        task = ("For each REQUIREMENT below, write the strongest honest competency answer of 120-180 words in "
-                "STAR form (Situation, Task, Action, Result), as asked in HSE application forms.\n"
+        task = (f"Answer the QUESTION below with the strongest honest competency answer of at most {max_words} words in "
+                "STAR form (Situation, Task, Action, Result), as asked in application forms. Answer only this "
+                "question, then stop: never ask whether to continue or offer more.\n"
                 "Format each answer as:\n**<the requirement>**\nType: Direct  (or)  Type: Transferable\n<the answer>\n"
                 "Use 'Direct' when the evidence shows I have done this exact kind of work. Use 'Transferable' when "
                 "you build the answer from a different real situation in the evidence whose skills carry over: "
@@ -116,7 +118,8 @@ def build_prompt(mode, job, reqs, evidence, missing, name="me"):
                 "outcome from the evidence, with its numbers if any). Example shape, NOT content to copy: "
                 "'In my role as <job title> at <employer> [E1], <situation>. I needed to <task>. I <actions> [E1]. "
                 "As a result, <result> [E1].' For a project: 'In a personal portfolio project [P1], ...'")
-    return (f"{task}\n\nJOB: {job['title']} at {job['company']}\n\nREQUIREMENTS FROM THE AD:\n{req_text}\n\n"
+    heading = "REQUIREMENTS FROM THE AD" if mode == "cover" else "QUESTION"
+    return (f"{task}\n\nJOB: {job['title']} at {job['company']}\n\n{heading}:\n{req_text}\n\n"
             f"EVIDENCE (the only facts you may use):\n{evidence_text}\n\n{rules}")
 
 
@@ -186,21 +189,52 @@ def check(text, evidence, vocab, meta=None):
     return warnings
 
 
-def write_document(job, mode):
+CHATTER = re.compile(r"^.*\b(let me know|would you like|shall I|I can (?:also|continue)|here (?:is|are) (?:the|your|my))\b.*$",
+                     re.I | re.M)
+
+
+def description_of(job):
+    """The full ad text (the ranked file leaves it out to stay small)."""
+    jobs = pd.concat([pd.read_csv(p) for p in JOB_FILES if p.exists()], ignore_index=True)
+    match = jobs[(jobs["source"] == job["source"]) & (jobs["job_id"].astype(str) == str(job["job_id"]))]
+    return match["description"].iloc[0] if len(match) else ""
+
+
+def questions_for(job, description):
+    """The questions to answer: the application form's own questions when the job has them
+    (HSE jobs, saved by fetch_hse.py), otherwise the requirements found in the ad."""
+    saved = job.get("form_questions") if hasattr(job, "get") else None
+    if isinstance(saved, str) and saved.strip().startswith("["):
+        found = json.loads(saved)
+        if found:
+            return found
+    return requirements(description)[:6]
+
+
+def write_document(job, mode, questions=None):
     """Write a cover letter (mode 'cover') or competency answers (mode 'hse') for one shortlisted job.
+    For answers, each question is sent to the model on its own (small local models lose track of long
+    lists). `questions` overrides the ones found automatically.
     Returns the text, the check warnings, the answer types and the saved file paths."""
     master = json.loads(MASTER.read_text(encoding="utf-8"))
     vocab = pd.read_csv(VOCAB)
     weights = dict(zip(vocab["skill"], vocab["weight"]))
-    jobs = pd.concat([pd.read_csv(p) for p in JOB_FILES if p.exists()], ignore_index=True)
-    match = jobs[(jobs["source"] == job["source"]) & (jobs["job_id"].astype(str) == str(job["job_id"]))]
-    description = match["description"].iloc[0] if len(match) else ""
+    description = description_of(job)
     job_tags = set(str(job["skills_you_have"]).split(", ")) - {"nan", ""}
     missing = sorted(set(str(job["skills_missing"]).split(", ")) - {"nan", ""})
     evidence = evidence_list(master, job_tags, words(job["title"] + " " + description), weights)
-    reqs = requirements(description)[:6 if mode == "hse" else 12]
-
-    text = ask_model(build_prompt(mode, job, reqs, evidence, missing, master.get("name") or "me"))
+    name = master.get("name") or "me"
+    if mode == "cover":
+        text = ask_model(build_prompt(mode, job, requirements(description)[:12], evidence, missing, name))
+    else:
+        answers = []
+        for q in (questions if questions is not None else questions_for(job, description)):
+            answer = ask_model(build_prompt(mode, job, [q], evidence, missing, name,
+                                            min(word_limit(q), 350))).strip()
+            answer = re.sub(r"^\*\*.*?\*\*\s*", "", answer)  # the model often repeats the question in bold
+            answers.append(f"**{q}**\n{answer}")
+        text = "\n\n".join(answers)
+    text = CHATTER.sub("", text).strip()  # drop 'Let me know if you'd like me to continue' and the like
     # Proofread first (fixes 'myskills' etc.), then run the fact checks on the corrected text
     known = known_words(json.dumps(master), description, job["title"], job["company"], " ".join(vocab["skill"]))
     text, fixes, spelling = proofread(text, known)
@@ -223,15 +257,64 @@ def write_document(job, mode):
     doc.styles["Normal"].font.name, doc.styles["Normal"].font.size = "Calibri", Pt(11)
     for para in re.sub(r"\s*\[[PESC]\d+\]", "", text).split("\n"):
         if para.strip():
-            doc.add_paragraph(para.replace("**", "").strip())
+            run = doc.add_paragraph().add_run(para.replace("**", "").strip())
+            run.bold = para.strip().startswith("**")  # the questions stand out
     doc.save(paths["docx"])
     return {"text": text, "warnings": warnings, "types": types, "paths": paths,
             "fixes": fixes, "spelling": spelling}
 
 
+def plain_label(m):
+    """An evidence item labelled for you to read (the AI gets the longer label above)."""
+    if m["kind"] in ("job", "study"):
+        return f"{'Job' if m['kind'] == 'job' else 'Study'}: {m['role']} at {m['place']} ({m['dates']}): {m['text']}"
+    return f"{'Portfolio project' if m['kind'] == 'project' else 'Certificate'}: {m['text']}"
+
+
+def answer_plan(job, questions, per_question=3):
+    """For forms that don't allow AI: for each question, the best examples from your CV, laid out
+    under STAR headings for you to write the answer yourself. No AI is used. Saves
+    output/PLAN_<company>_<id>.docx and returns [(question, [evidence labels])]."""
+    master = json.loads(MASTER.read_text(encoding="utf-8"))
+    vocab = pd.read_csv(VOCAB)
+    weights = dict(zip(vocab["skill"], vocab["weight"]))
+    meta = evidence_meta(master)
+    plan, used = [], {}
+    for q in questions:
+        q_tags, q_words = tags_in(q, vocab), words(q)
+        # the question's own skills and words decide; an example already suggested counts a little less,
+        # so each question gets its own best examples rather than the same three every time
+        def score(item):
+            pid, m = item
+            return relevance(m["text"], m["tags"], q_tags, q_words, weights) - 0.75 * used.get(pid, 0)
+        ranked = [kv for kv in sorted(meta.items(), key=score, reverse=True) if kv[1]["kind"] != "summary"]
+        picked = ranked[:per_question]
+        for pid, _ in picked:
+            used[pid] = used.get(pid, 0) + 1
+        plan.append((q, [plain_label(m) for _, m in picked]))
+
+    doc = Document()
+    doc.styles["Normal"].font.name, doc.styles["Normal"].font.size = "Calibri", Pt(11)
+    doc.add_paragraph().add_run(f"Answer plan: {job['title']} ({job['company']})").bold = True
+    doc.add_paragraph("Write each answer yourself, in your own words. These are the examples from your CV that "
+                      "fit each question best; pick one and describe it as Situation, Task, Action, Result.")
+    for q, examples in plan:
+        doc.add_paragraph().add_run(q).bold = True
+        doc.add_paragraph(f"Aim for about {word_limit(q)} words or fewer.")
+        for e in examples:
+            doc.add_paragraph(e, style="List Bullet")
+        for part in ("Situation:", "Task:", "Action:", "Result:"):
+            doc.add_paragraph().add_run(part).italic = True
+    OUT_DIR.mkdir(exist_ok=True)
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", f"{job['company']}_{job['job_id']}").strip("_")
+    path = OUT_DIR / f"PLAN_{slug}.docx"
+    doc.save(path)
+    return plan, path
+
+
 def main():
     job = pick_job(pd.read_csv(RANKED))
-    mode = "hse" if input("1 = cover letter, 2 = competency answers (HSE style) [1]: ").strip() == "2" else "cover"
+    mode = "hse" if input("1 = cover letter, 2 = competency answers (STAR) [1]: ").strip() == "2" else "cover"
     print(f"\nAsking {describe()} ...")
     result = write_document(job, mode)
 

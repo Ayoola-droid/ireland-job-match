@@ -649,15 +649,54 @@ with tab_short:
 
         st.divider()
         st.subheader("Cover letter and competency answers (AI)")
+        import form_questions
         import write_application
-        w1, w2 = st.columns(2)
-        for col, mode, label in [(w1, "cover", "✉ Write cover letter"), (w2, "hse", "🧩 Write competency answers")]:
-            if col.button(label):
+        with st.expander("Questions to answer", expanded=True):
+            st.caption("Taken from the job's application form when the app found one, otherwise from the ad's "
+                       "requirements. Upload the form, or paste the questions yourself; leave a blank line "
+                       "between questions.")
+            form = st.file_uploader("The employer's application form (.docx)", type=["docx"], key=f"form-{slug}")
+            if form is not None and st.session_state.get(f"form-read-{slug}") != form.file_id:
+                content = form.read()
+                found = form_questions.questions_from_docx(content)
+                st.session_state[f"q-{slug}"] = "\n\n".join(found)
+                st.session_state[f"no-ai-{slug}"] = form_questions.forbids_ai(content)
+                st.session_state[f"form-read-{slug}"] = form.file_id
+                st.caption(f"Found {len(found)} question(s) in the form.")
+            if f"q-{slug}" not in st.session_state:
+                st.session_state[f"q-{slug}"] = "\n\n".join(write_application.questions_for(
+                    job, write_application.description_of(job)))
+            questions_text = st.text_area("One question per paragraph", key=f"q-{slug}", height=220)
+        questions = [q.strip() for q in re.split(r"\n\s*\n", questions_text) if q.strip()]
+        no_ai = bool(st.session_state.get(f"no-ai-{slug}", str(job.get("form_no_ai", "")).lower() == "true"))
+        if no_ai:
+            st.error("**This employer's form says not to use AI to complete it** (the HSE's says: \"Your application "
+                     "must be your own work … Do not use AI to complete the application form\"). AI answers are "
+                     "switched off for this job. Use the answer plan instead: it picks the best examples from your "
+                     "CV for each question, and you write the answers yourself.")
+        w1, w2, w3 = st.columns(3)
+        if w3.button("📝 Make answer plan (no AI)", disabled=not questions,
+                     help="The best CV examples for each question, under Situation / Task / Action / Result"):
+            st.session_state[f"plan-{slug}"] = write_application.answer_plan(job, questions)
+        for col, mode, label in [(w1, "cover", "✉ Write cover letter"),
+                                 (w2, "hse", f"🧩 Write answers to {len(questions)} question(s)")]:
+            if col.button(label, disabled=(mode == "hse" and (not questions or no_ai))):
                 try:
-                    with st.spinner("Writing with the AI model (a minute or two on a laptop)…"):
-                        st.session_state[f"doc-{mode}"] = write_application.write_document(job, mode)
+                    with st.spinner("Writing with the AI model (a minute or two per answer on a laptop)…"):
+                        st.session_state[f"doc-{mode}"] = write_application.write_document(job, mode, questions)
                 except SystemExit as error:  # local_ai stops with a message if the model can't be reached
                     st.error(str(error))
+        plan = st.session_state.get(f"plan-{slug}")
+        if plan:
+            with st.container(border=True):
+                h1, h2 = st.columns([3, 1])
+                h1.markdown(f"**Answer plan** · `{plan[1].name}`")
+                with h2:
+                    download(plan[1], "⬇ Download")
+                for q, examples in plan[0]:
+                    st.markdown(f"**{q}**")
+                    for e in examples:
+                        st.caption(f"• {e}")
         for mode, prefix in [("cover", "COVER"), ("hse", "ANSWERS")]:
             res = st.session_state.get(f"doc-{mode}")
             if res and Path(res["paths"]["docx"]).stem.endswith(slug):
