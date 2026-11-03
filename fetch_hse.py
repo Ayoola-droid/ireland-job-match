@@ -9,7 +9,9 @@
    requirements) and the Application Form (the competency questions you
    must answer; the form is saved in data/raw/hse/forms/ to fill in).
 Contact names, emails and phone numbers on the pages are NOT kept.
-Saves data/processed/jobs_hse.csv in the same layout as jobs_greenhouse.csv.
+Jobs already read on an earlier run are not opened again (only the listing pages are), so a
+second run in the same week takes seconds instead of minutes.
+Saves data/processed/jobs_hse.csv in the same layout as the other job files.
 """
 import html
 import io
@@ -154,9 +156,22 @@ def main():
     picked = jobs[jobs["category"].isin(CATEGORIES) & (jobs["days_old"] <= DAYS)].copy()
     print(f"In {CATEGORIES} and posted in the last {DAYS} days: {len(picked)}")
 
-    # 2. Details for the picked jobs
-    rows = []
+    # 2. Details for the picked jobs (reusing those read on an earlier run)
+    earlier = {}
+    if OUT.exists() and OUT.stat().st_size > 5:
+        old = pd.read_csv(OUT, dtype={"job_id": str})
+        if "form_questions" in old:  # files from before the form reader are read again
+            earlier = {r["url"]: r.to_dict() for _, r in old.iterrows()}
+    rows, reused = [], 0
     for _, job in picked.iterrows():
+        if job["url"] in earlier:
+            row = earlier[job["url"]]
+            closing = pd.to_datetime(row.get("closing_date"), errors="coerce")
+            row.update({"days_old": job["days_old"],
+                        "still_open": bool(pd.notna(closing) and closing.date() >= datetime.now().date())})
+            rows.append(row)
+            reused += 1
+            continue
         slug = job["url"].rstrip("/").split("/")[-1]
         text = page_text(get(job["url"], f"job_{slug}_{TODAY}.html").text)
         detail = {label: field(text, label) for label in
@@ -207,6 +222,7 @@ def main():
               f" | closes {detail['Closing date'][:10] or '?'} | spec: {'yes' if spec_text else 'no'}"
               f" | form questions: {len(questions)}")
 
+    print(f"Reused {reused} job(s) read on an earlier run; read {len(rows) - reused} new one(s)")
     out = pd.DataFrame(rows)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(OUT, index=False)

@@ -122,14 +122,23 @@ def main():
     jobs = jobs[jobs["days_old"].isna() | (jobs["days_old"] <= DAYS)].copy()
 
     if FULL_ADS:
-        print(f"\nReading the full text of {len(jobs)} ads (one per second) ...")
-        full = jobs["url"].apply(full_text)
+        # Ads read on an earlier run aren't opened again
+        earlier = {}
+        if OUT.exists() and OUT.stat().st_size > 5:
+            old = pd.read_csv(OUT, dtype=str).fillna("")
+            earlier = dict(zip(old["url"], old["description"]))
+        todo = ~jobs["url"].isin(earlier)
+        print(f"\nReading the full text of {int(todo.sum())} new ads (one per second); "
+              f"{int((~todo).sum())} were read on an earlier run ...")
+        full = jobs["url"].map(lambda u: earlier[u] if u in earlier else full_text(u))
         longer = full.str.len() > jobs["description"].str.len()
         jobs.loc[longer, "description"] = full[longer]
         print(f"  full text read for {int(longer.sum())} of {len(jobs)}; the rest are scored on Jooble's snippet")
     jobs["short_text"] = jobs["description"].str.len() < 400
     # Pay written in the listing (e.g. "€45k - €55k") is added to the text so score_jobs.py can read it
-    jobs["description"] = (jobs["description"] + " " + jobs["salary_text"].fillna("")).str.strip()
+    pay = jobs["salary_text"].fillna("")
+    add_pay = [bool(sal) and sal not in d for d, sal in zip(jobs["description"], pay)]  # not twice
+    jobs.loc[add_pay, "description"] = jobs.loc[add_pay, "description"] + " " + pay[add_pay]
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     jobs.drop(columns=["salary_text"]).sort_values("days_old").to_csv(OUT, index=False)
