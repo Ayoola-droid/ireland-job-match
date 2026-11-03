@@ -19,6 +19,8 @@ from docx import Document
 from docx.shared import Pt
 
 from local_ai import ask_model, describe
+from cv_import import guess_kind
+from settings import setting
 from proofread import known_words, proofread
 from tailor_cv import JOB_FILES, MASTER, RANKED, VOCAB, pick_job, relevance, requirements, words
 
@@ -43,7 +45,8 @@ def evidence_meta(master):
     for role in master["experience"]:
         parts = [x.strip() for x in role["heading"].split("|")]
         title, place, dates = (parts + ["", "", ""])[:3]
-        kind = "study" if re.search(r"academic|MSc|university|TUS", title + place, re.I) else "job"
+        # each role says whether it was a job or study (set in the app's CV editor); older files are guessed
+        kind = role.get("kind") or guess_kind(role["heading"])
         org = place.split(",")[0].strip()
         for b in role["bullets"]:
             n += 1
@@ -79,25 +82,25 @@ def evidence_list(master, job_tags, job_words, weights):
     return ranked[:MAX_EVIDENCE]
 
 
-def build_prompt(mode, job, reqs, evidence, missing):
+def build_prompt(mode, job, reqs, evidence, missing, name="me"):
     evidence_text = "\n".join(f"[{pid}] {text}" for pid, text, _ in evidence)
     req_text = "\n".join(f"- {r}" for r in reqs) or "- (none extracted; use the job title)"
     rules = f"""RULES - follow all of them:
 1. Use ONLY facts from the EVIDENCE list. Do not add any skill, tool, number, employer or achievement that is not in it.
 2. After every sentence that states a fact about me, put the evidence id(s) in square brackets, e.g. [P2] or [E3][S1].
 3. I do NOT have these skills, so never claim them: {', '.join(missing) or 'none listed'}. If the job needs one, you may say I am keen to learn it.
-4. Plain, confident Irish/UK English. No clichés such as "I am writing to express my interest" or "passionate".
+4. Plain, confident {setting("writing_english", "UK/Irish English")}. No clichés such as "I am writing to express my interest" or "passionate".
 5. Keep numbers exactly as written in the evidence.
 6. Where I lack direct experience of something the job asks for, make the strongest TRUE case from transferable
    experience: name the closest real example from the evidence and say plainly how it carries over
    (e.g. "Although I haven't used X, at Y I did Z, which ..."). Never present a transferable example as direct experience.
 7. Each evidence item says what it is. Only JOB items are employment. A PERSONAL PORTFOLIO PROJECT is something I did on
    my own with public data: write "In a personal portfolio project, I analysed <organisation>'s public data ..." and
-   NEVER say I worked at, for or with that organisation, or that it was my role. UNIVERSITY STUDY happened during my MSc.
+   NEVER say I worked at, for or with that organisation, or that it was my role. UNIVERSITY STUDY happened during my studies.
 8. Name the job title and employer exactly as written in the item you cite. Never move an example from one job to another.
 9. Do not invent what the work "involved" (teams, vendors, budgets, segments) beyond the evidence text."""
     if mode == "cover":
-        task = (f"Write a cover letter (maximum {MAX_WORDS} words) from Ayoola Fadare for the job below. "
+        task = (f"Write a cover letter (maximum {MAX_WORDS} words) from {name} for the job below. "
                 "Three or four short paragraphs: why this role, two or three pieces of evidence that match the "
                 "requirements, and a short close. Do not include addresses or a date.")
     else:
@@ -197,7 +200,7 @@ def write_document(job, mode):
     evidence = evidence_list(master, job_tags, words(job["title"] + " " + description), weights)
     reqs = requirements(description)[:6 if mode == "hse" else 12]
 
-    text = ask_model(build_prompt(mode, job, reqs, evidence, missing))
+    text = ask_model(build_prompt(mode, job, reqs, evidence, missing, master.get("name") or "me"))
     # Proofread first (fixes 'myskills' etc.), then run the fact checks on the corrected text
     known = known_words(json.dumps(master), description, job["title"], job["company"], " ".join(vocab["skill"]))
     text, fixes, spelling = proofread(text, known)

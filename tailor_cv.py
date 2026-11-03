@@ -20,6 +20,8 @@ from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, RGBColor, Inches
 
+from settings import setting
+
 MASTER = Path("cv_master.json")
 VOCAB = Path("skills_vocab.csv")
 RANKED = Path("data/processed/jobs_ranked.csv")
@@ -114,7 +116,7 @@ BULLETS:
 RULES - follow all of them:
 1. Keep the meaning of each bullet. Do not add any skill, tool, number, employer, result or responsibility that is not in that bullet.
 2. Keep every number exactly as written.
-3. Start with a strong past-tense verb. Maximum 35 words per bullet. Irish/UK English.
+3. Start with a strong past-tense verb. Maximum 35 words per bullet. {setting("writing_english", "UK/Irish English")}.
 4. If a bullet cannot honestly be brought closer to the ad, return it unchanged.
 5. Reply with exactly {len(bullets)} lines, numbered 1. to {len(bullets)}., and nothing else."""
 
