@@ -16,8 +16,8 @@
 
 You don't need to be in data analytics or need a visa: the app is built from **your** CV.
 
-1. Install it (see [Setup](#setup)) and double-click `start_app.bat` (or run `streamlit run app.py`).
-2. **1. My CV:** upload your CV as a Word file. Check each part (About me, Experience, Projects & portfolio, Education & certificates) and fix anything that landed in the wrong place, then click **Save my CV**.
+1. Install it (see [Setup](#setup)) and double-click `start_app.bat` (or run `streamlit run app.py`). The app opens on a **❓ How to use** tab with these steps.
+2. **1. My CV:** drop your CV (a Word file) in the green box. Later, drop in a newer CV and choose **Add only what's new** to keep your edits. Check each part (About me, Experience, Projects & portfolio, Education & certificates) and fix anything that landed in the wrong place, then click **Save my CV**.
 3. **Skills list:** click **Add them to the list** to add your CV's own skills, then **Tick exactly the skills found in my CV** and add any others you have. Jobs are scored on these, and the AI is never allowed to claim the unticked ones.
 4. **2. Find jobs → Your search:**
    - the places to search, e.g. `london|manchester|remote`
@@ -25,7 +25,8 @@ You don't need to be in data analytics or need a visa: the app is built from **y
    - the English you write in
    - the company career boards to read: any company on Greenhouse
    - whether you need **visa sponsorship**. Untick it if you can already work there: jobs are then ranked by skill match only, and the Irish sponsor data isn't needed.
-5. Click **Run everything**, then go to **3. Shortlist** to make a tailored CV, cover letter or competency answers for each job, and log each application.
+5. Click **Run everything**, then go to **3. Shortlist** to make a tailored CV, cover letter or competency answers for each job, and log each application. The questions come from the employer's application form (found automatically for HSE jobs, or upload any form).
+   - Where a form says not to use AI (as HSE forms do), the app warns you and offers an **answer plan** instead: the best examples from your CV for each question, for you to write up.
 
 All your settings are kept in `app_settings.json`, your skills in `skills_vocab.csv`, and your CV in `cv_master.json`, which never leaves your computer. For the AI writing, run a free local model in [LM Studio](https://lmstudio.ai/) or add a cloud profile in `ai_settings.json`. The HSE source and the DETE sponsor list are specific to Ireland; switch them off elsewhere.
 
