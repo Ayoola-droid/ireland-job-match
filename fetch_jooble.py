@@ -7,7 +7,8 @@ short snippet of each ad, so (when "jooble_full_ads" is on) it then opens each a
 per second, and reads the full text so the skill scoring has something to work with.
 Saves data/processed/jobs_jooble.csv in the same layout as the other job files.
 
-Setup: request a free API key at https://jooble.org/api/about. Then put the key in an
+Setup: request a free API key from your country's Jooble site, e.g. https://ie.jooble.org/api/about
+for Ireland (the key from jooble.org itself searches the US). Then put the key in an
 environment variable called JOOBLE_API_KEY (never in a file):
     PowerShell:  setx JOOBLE_API_KEY "your-key"     (then close and reopen the terminal and the app)
 """
@@ -31,7 +32,8 @@ LOCATION = setting("jooble_location", "Ireland")
 DAYS = setting("days", 30)
 MAX_PAGES = setting("jooble_max_pages", 3)        # pages of results per search word
 FULL_ADS = setting("jooble_full_ads", True)       # open each ad to read the full text
-API_HOST = setting("jooble_host", "https://jooble.org")
+COUNTRY = setting("jooble_country", "ie")          # Jooble runs one site per country: ie.jooble.org, uk.jooble.org...
+API_HOST = setting("jooble_host", "") or f"https://{COUNTRY}.jooble.org"  # (jooble_host only for testing)
 PAUSE_SECONDS = 1.0
 # -----------------------------------------------------------------------------
 
@@ -80,9 +82,9 @@ def full_text(url):
 def main():
     key = os.environ.get(KEY_ENV, "").strip()
     if not key:
-        raise SystemExit(f"No Jooble API key. Request a free key at https://jooble.org/api/about, then in "
+        raise SystemExit(f"No Jooble API key. Request a free key at https://{COUNTRY}.jooble.org/api/about, then in "
                          f"PowerShell run:  setx {KEY_ENV} \"your-key\"  and restart the app.")
-    print(f"Searching Jooble for {KEYWORDS} in {LOCATION} ...")
+    print(f"Searching {API_HOST} for {KEYWORDS} in {LOCATION} ...")
     rows = []
     for keywords in KEYWORDS:
         found = 0

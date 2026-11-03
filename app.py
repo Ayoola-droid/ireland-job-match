@@ -631,14 +631,20 @@ with tab_find:
         has_key = bool(os.environ.get("JOOBLE_API_KEY"))
         use_jooble = st.checkbox("Jooble: job search engine covering thousands of sites, including small companies "
                                  "and recruiters", bool(S.get("use_jooble", False)))
-        j1, j2 = st.columns([2, 1])
+        j1, j2, j3 = st.columns([3, 1.4, 1])
         jooble_words = j1.text_input("Jooble search words (separate with commas)",
                                      ", ".join(S.get("jooble_keywords", ["data analyst", "business analyst"])),
                                      help="Each one is a separate search, e.g. data analyst, reporting analyst, "
                                           "marketing executive")
         jooble_location = j2.text_input("Jooble location", S.get("jooble_location", "Ireland"))
+        countries = ["ie", "uk", "us", "ca", "au", "nz", "de", "fr", "nl", "es", "it", "pl", "pt", "be", "at", "ch"]
+        jooble_country = j3.selectbox("Jooble country site", countries,
+                                      index=countries.index(S.get("jooble_country", "ie"))
+                                      if S.get("jooble_country", "ie") in countries else 0,
+                                      help="Jooble has one site per country (ie.jooble.org for Ireland). "
+                                           "Request your key from the same country's site.")
         if use_jooble and not has_key:
-            st.warning("Jooble needs a free API key: request one at https://jooble.org/api/about, then in "
+            st.warning(f"Jooble needs a free API key: request one at https://{jooble_country}.jooble.org/api/about, then in "
                        "PowerShell run `setx JOOBLE_API_KEY \"your-key\"`, and close and reopen the app.")
         elif use_jooble:
             st.caption("✔ Jooble key found. Jooble sends a short snippet of each ad; the app opens each ad "
@@ -671,6 +677,7 @@ with tab_find:
                        "currency": currency, "writing_english": english, "app_name": app_name or "Job Match",
                        "check_sponsorship": sponsorship, "use_greenhouse": use_greenhouse, "use_hse": use_hse,
                        "use_jooble": use_jooble, "jooble_location": jooble_location.strip() or "Ireland",
+                       "jooble_country": jooble_country,
                        "jooble_keywords": [w.strip() for w in jooble_words.split(",") if w.strip()]})
         st.success("Saved. Click 'Run everything' (new places or sources) or 'Score & rank' to apply them.")
         st.rerun()
