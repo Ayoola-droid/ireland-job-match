@@ -1,0 +1,69 @@
+# Settings for the Streamlit app (app.py)
+[browser]
+gatherUsageStats = false   # don't send usage statistics to Streamlit
+
+[client]
+toolbarMode = "minimal"    # hide the developer menu and the 'Deploy' button
+
+[server]
+headless = false           # open the browser automatically
+enableStaticServing = true # serve the bundled fonts in static/fonts (no Google Fonts requests)
+
+# Look and feel: "Atlantic ledger" - deep sea ink on cool paper, one sharp green accent.
+# Fonts are bundled in static/fonts (SIL Open Font Licence), so the app looks the same offline.
+[theme]
+base = "light"
+primaryColor = "#0B7A5C"             # deep Irish green: buttons, sliders, active tab
+backgroundColor = "#F2F4EF"          # cool paper
+secondaryBackgroundColor = "#E2E8E1" # sidebar, inputs
+textColor = "#0F2A2E"                # deep sea ink
+borderColor = "#C9D3CB"
+linkColor = "#0B7A5C"
+font = "IBM Plex Sans, sans-serif"
+headingFont = "Bricolage Grotesque, sans-serif"
+codeFont = "JetBrains Mono, monospace"
+headingFontWeights = [800, 800, 700, 700, 600, 600]
+baseRadius = "0.4rem"
+showWidgetBorder = true
+chartCategoricalColors = ["#0B7A5C", "#E07A2E", "#2E5E8A", "#8A9A3B", "#B04A5A"]
+
+[[theme.fontFaces]]
+family = "IBM Plex Sans"
+url = "app/static/fonts/ibm-plex-sans-latin-300-normal.woff2"
+weight = 300
+
+[[theme.fontFaces]]
+family = "IBM Plex Sans"
+url = "app/static/fonts/ibm-plex-sans-latin-400-normal.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "IBM Plex Sans"
+url = "app/static/fonts/ibm-plex-sans-latin-600-normal.woff2"
+weight = 600
+
+[[theme.fontFaces]]
+family = "Bricolage Grotesque"
+url = "app/static/fonts/bricolage-grotesque-latin-300-normal.woff2"
+weight = 300
+
+[[theme.fontFaces]]
+family = "Bricolage Grotesque"
+url = "app/static/fonts/bricolage-grotesque-latin-800-normal.woff2"
+weight = 800
+
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/fonts/jetbrains-mono-latin-400-normal.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "JetBrains Mono"
+url = "app/static/fonts/jetbrains-mono-latin-600-normal.woff2"
+weight = 600
+
+[theme.sidebar]
+backgroundColor = "#0F2A2E"          # dark ink sidebar: strong contrast with the page
+secondaryBackgroundColor = "#1C3D42"
+textColor = "#E8EFE9"
+borderColor = "#2C5056"
