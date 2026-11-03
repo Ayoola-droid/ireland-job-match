@@ -27,7 +27,8 @@ CURRENCY = setting("currency", "€")               # the symbol pay is written 
 INCLUDE_INTERNAL = setting("include_internal", False)  # True if eligible for HSE "Internal and Confined" jobs
 # -----------------------------------------------------------------------------
 
-SOURCES = {"greenhouse": Path("data/processed/jobs_greenhouse.csv"), "hse": Path("data/processed/jobs_hse.csv"),
+SOURCES = {"greenhouse": Path("data/processed/jobs_boards.csv"),  # all company career boards (setting name kept)
+           "hse": Path("data/processed/jobs_hse.csv"),
            "jooble": Path("data/processed/jobs_jooble.csv")}
 MANUAL = Path("data/processed/jobs_manual.csv")  # jobs you added by link or pasted text: always scored
 JOB_FILES = [path for name, path in SOURCES.items() if setting(f"use_{name}", name != "jooble")] + [MANUAL]
@@ -83,18 +84,26 @@ def salary_from_text(text):
     return (min(amounts), max(amounts)) if amounts else (None, None)
 
 
+def compile_vocab(vocab):
+    """Prepare each skill's search pattern once, instead of once per job (much faster)."""
+    return [(row["skill"], re.compile(row["pattern"], 0 if row["case_sensitive"] == "yes" else re.IGNORECASE),
+             row["i_have_it"] == "yes", row["weight"]) for _, row in vocab.iterrows()]
+
+
 def find_skills(text, vocab):
-    """Return the skills in the ad you have, the ones you don't, and their weights."""
+    """Return the skills in the ad you have, the ones you don't, and their weights.
+    `vocab` is the skills table, or the result of compile_vocab(skills table)."""
+    if isinstance(vocab, pd.DataFrame):
+        vocab = compile_vocab(vocab)
     have, missing, w_have, w_missing = [], [], 0, 0
-    for _, row in vocab.iterrows():
-        flags = 0 if row["case_sensitive"] == "yes" else re.IGNORECASE
-        if re.search(row["pattern"], text, flags):
-            if row["i_have_it"] == "yes":
-                have.append(row["skill"])
-                w_have += row["weight"]
+    for skill, pattern, i_have_it, weight in vocab:
+        if pattern.search(text):
+            if i_have_it:
+                have.append(skill)
+                w_have += weight
             else:
-                missing.append(row["skill"])
-                w_missing += row["weight"]
+                missing.append(skill)
+                w_missing += weight
     return have, missing, w_have, w_missing
 
 
@@ -142,7 +151,8 @@ def main():
     print("Share of each company's ad text removed as boilerplate (About us, benefits, etc.):")
     print(jobs.groupby("company")["boilerplate_share"].mean().map("{:.0%}".format).to_string(), "\n")
 
-    results = jobs.apply(lambda j: find_skills(j["title"] + " " + j["core_text"], vocab), axis=1)
+    compiled = compile_vocab(vocab)
+    results = jobs.apply(lambda j: find_skills(j["title"] + " " + j["core_text"], compiled), axis=1)
     jobs["skills_you_have"] = [", ".join(r[0]) for r in results]
     jobs["skills_missing"] = [", ".join(r[1]) for r in results]
     jobs["n_have"] = [len(r[0]) for r in results]
@@ -173,9 +183,10 @@ def main():
     # Other jobs: look for a pay range written in the ad itself
     from_text = jobs["description"].apply(salary_from_text)
     found = jobs["pay_min"].isna() & from_text.str[0].notna()
-    jobs.loc[found, "pay_min"] = from_text[found].str[0]
-    jobs.loc[found, "pay_max"] = from_text[found].str[1]
-    jobs.loc[found, "pay_source"] = "ad text"
+    if found.any():
+        jobs.loc[found, "pay_min"] = from_text[found].str[0].astype(float)
+        jobs.loc[found, "pay_max"] = from_text[found].str[1].astype(float)
+        jobs.loc[found, "pay_source"] = "ad text"
     print("Where the pay figure came from:", jobs["pay_source"].value_counts().to_dict(), "\n")
     jobs["recent"] = (jobs["days_old"] <= DAYS) | (jobs["source"] == "manual")  # you chose these yourself
 

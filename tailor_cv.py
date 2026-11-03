@@ -25,7 +25,7 @@ from settings import setting
 MASTER = Path("cv_master.json")
 VOCAB = Path("skills_vocab.csv")
 RANKED = Path("data/processed/jobs_ranked.csv")
-JOB_FILES = [Path("data/processed/jobs_greenhouse.csv"), Path("data/processed/jobs_hse.csv"),
+JOB_FILES = [Path("data/processed/jobs_boards.csv"), Path("data/processed/jobs_hse.csv"),
              Path("data/processed/jobs_jooble.csv"), Path("data/processed/jobs_manual.csv")]
 OUT_DIR = Path("output")
 ACCENT = RGBColor(0x1F, 0x5C, 0x7A)
