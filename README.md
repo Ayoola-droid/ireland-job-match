@@ -8,9 +8,26 @@
 - Live HSE job ads from [about.hse.ie](https://about.hse.ie/jobs/job-search/) (public pages; robots.txt allows the jobs section)
 - HSE consolidated pay scales by grade (June 2026), stored in `hse_grade_pay.csv`
 
-**Tools:** Python 3.12 (pandas, requests, openpyxl, python-docx), regular expressions, Excel, Word
+**Tools:** Python 3.12 (pandas, requests, openpyxl, python-docx, Streamlit), regular expressions, a local or cloud AI model, Excel, Word
 
-**Status:** In progress. The pipeline runs end to end (fetch → score → sponsor check → tailored CV → application log). Next: weight the ad's essential criteria, add more job sources.
+**Status:** In progress. The pipeline runs end to end behind a point-and-click app (import CV → fetch → score → sponsor check → tailored CV → cover letter and competency answers → application log). Next: weight the ad's essential criteria, add more job sources.
+
+## Use it for your own job search
+
+You don't need to be in data analytics or need a visa: the app is built from **your** CV.
+
+1. Install it (see [Setup](#setup)) and double-click `start_app.bat` (or run `streamlit run app.py`).
+2. **1. My CV:** upload your CV as a Word file. Check each part (About me, Experience, Projects & portfolio, Education & certificates) and fix anything that landed in the wrong place, then click **Save my CV**.
+3. **Skills list:** click **Add them to the list** to add your CV's own skills, then **Tick exactly the skills found in my CV** and add any others you have. Jobs are scored on these, and the AI is never allowed to claim the unticked ones.
+4. **2. Find jobs → Your search:**
+   - the places to search, e.g. `london|manchester|remote`
+   - the currency and your salary floor (0 = none)
+   - the English you write in
+   - the company career boards to read: any company on Greenhouse
+   - whether you need **visa sponsorship**. Untick it if you can already work there: jobs are then ranked by skill match only, and the Irish sponsor data isn't needed.
+5. Click **Run everything**, then go to **3. Shortlist** to make a tailored CV, cover letter or competency answers for each job, and log each application.
+
+All your settings are kept in `app_settings.json`, your skills in `skills_vocab.csv`, and your CV in `cv_master.json`, which never leaves your computer. For the AI writing, run a free local model in [LM Studio](https://lmstudio.ai/) or add a cloud profile in `ai_settings.json`. The HSE source and the DETE sponsor list are specific to Ireland; switch them off elsewhere.
 
 ## Key findings (first run, 1 November 2026)
 
@@ -30,6 +47,9 @@
 - Building a multi-step pipeline where each step does one job and can be rerun on its own
 - Privacy by design: personal names and contact details are never stored or committed
 - Generating Word documents in code (python-docx) from structured, tagged content
+- Guard-railed AI writing: every claim must cite CV evidence, and automatic checks catch invented numbers, unheld skills and projects passed off as jobs
+- Reading semi-structured documents: turning any Word CV into tagged, editable data
+- Designing a configurable tool that other people can set up for their own search without editing code
 
 ## Method
 
@@ -62,11 +82,11 @@
 
 ## How to rerun
 
-Run in this order (in VS Code, open each file and click ▶):
+The easiest way is the app: double-click `start_app.bat` and use the buttons. Each button runs the scripts below, which still work on their own (in VS Code, open each file and click ▶), in this order:
 
 1. `clean_sponsors.py`: only when a new month of DETE data is published
 2. `fetch_greenhouse.py` and `fetch_hse.py`: download today's jobs
-3. `score_jobs.py`: settings (time frame, years, salary floor, minimum score) are at the top of the file
+3. `score_jobs.py`: its settings (time frame, years, salary floor, minimum score…) come from `app_settings.json`, which the app's sliders save
 4. `add_sponsors.py`: writes `data/processed/jobs_ranked.csv`
 5. `tailor_cv.py`: pick a shortlisted job; writes `output/CV_<company>_<id>.docx` and `output/NOTES_<company>_<id>.md`
 6. `track_applications.py`: after applying, mark the job as applied; update statuses (interview, offer, rejected, no reply) as replies come in
@@ -83,9 +103,9 @@ pip install -r requirements.txt
 
 If PowerShell refuses to run `Activate.ps1`, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
 
-To make tailored CVs, copy `cv_master.example.json` to `cv_master.json` and replace the placeholder name and contact details with your own (`cv_master.json` is kept out of Git).
+Then double-click `start_app.bat` and upload your CV on the **My CV** tab (or copy `cv_master.example.json` to `cv_master.json` and edit it). `cv_master.json` is kept out of Git.
 
-The data isn't in the repository. Download *Employment permits issued to companies 2026* from the DETE link above into `data/raw/`, then run the scripts in the order shown. Tested with Python 3.12.10, pandas 3.1.0, openpyxl 3.1.5 and requests 2.34.2.
+The data isn't in the repository. Only if you need Irish visa sponsorship: download *Employment permits issued to companies 2026* from the DETE link above into `data/raw/` and click **Update sponsor list**. Tested with Python 3.12.10, pandas 3.1.0, openpyxl 3.1.5 and requests 2.34.2.
 
 ## Scripts
 
@@ -101,6 +121,13 @@ The data isn't in the repository. Download *Employment permits issued to compani
 | `add_sponsors.py` | Adds sponsor evidence and ranks the shortlist → `jobs_ranked.csv` |
 | `tailor_cv.py` | Builds a tailored Word CV and an evidence checklist for one shortlisted job → `output/` |
 | `track_applications.py` | Logs applications and their status → `data/applications.csv` (private); used by `score_jobs.py` to skip jobs already applied to |
+| `app.py` | The point-and-click app (Streamlit) that runs everything; `start_app.bat` opens it |
+| `cv_import.py` | Reads a Word CV into `cv_master.json` and tags each line with the skills it shows |
+| `write_application.py` | Writes a cover letter or STAR competency answers with the AI model, then checks them |
+| `proofread.py` | Fixes joined words and spacing in AI text and flags spellings to check |
+| `local_ai.py` | Sends prompts to the AI model chosen in `ai_settings.json` (local or cloud) |
+| `sync_portfolio.py` | Compares your GitHub repos with the projects on your CV |
+| `settings.py` | Reads and saves `app_settings.json` |
 
 | Mapping file | What it holds (edit these, not the code) |
 |---|---|
@@ -108,7 +135,9 @@ The data isn't in the repository. Download *Employment permits issued to compani
 | `skills_vocab.csv` | Skills, the words that reveal them, whether I have them, and their weight |
 | `company_aliases.csv` | Brand name → legal name(s) on the DETE list, with notes |
 | `hse_grade_pay.csv` | HSE pay range by grade and whether it suits my level |
-| `cv_master.json` | My CV as skill-tagged pieces (private; `cv_master.example.json` shows the layout) |
+| `cv_master.json` | My CV as skill-tagged pieces (private; edit it in the app, `cv_master.example.json` shows the layout) |
+| `app_settings.json` | Search settings: places, currency, salary floor, sponsorship on/off, sources, scoring limits |
+| `ai_settings.json` | AI model profiles (API keys stay in environment variables, never in this file) |
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). As a project convention, the `data` type marks changes to the mapping files above.
 
@@ -116,8 +145,10 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.
 
 ```
 ireland-job-match/
+├── app.py, start_app.bat    the app
 ├── *.py                     scripts (see table above)
-├── *.csv                    mapping files you can edit
+├── *.csv, *_settings.json   mapping and settings files you can edit
+├── .streamlit/, static/     app theme and bundled fonts
 ├── requirements.txt
 └── data/                    not in Git
     ├── raw/                 DETE file, dated job downloads
