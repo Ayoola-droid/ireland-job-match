@@ -3,10 +3,15 @@
 Joins data/processed/jobs_scored.csv to the DETE sponsor list through
 company_aliases.csv (your checked list of brand name -> legal name keys).
 Writes data/processed/jobs_ranked.csv.
+
+Don't need a work permit? Untick "Check visa sponsorship" in the app (setting
+"check_sponsorship": false): the jobs are then ranked by skill match only.
 """
 from pathlib import Path
 
 import pandas as pd
+
+from settings import setting
 
 JOBS = Path("data/processed/jobs_scored.csv")
 SPONSORS = Path("data/processed/sponsors_2026.csv")
@@ -27,8 +32,22 @@ def sponsor_level(permits, months):
     return "some"
 
 
+def rank_without_sponsors(jobs, reason):
+    print(f"Sponsorship not checked ({reason}): ranking by skill match only.")
+    jobs["sponsor_level"] = "not checked"
+    jobs["sponsor_permits_2026"] = 0
+    jobs["sponsor_months_active"] = 0
+    jobs = jobs.sort_values(["shortlist", "skill_score"], ascending=[False, False])
+    jobs.to_csv(OUT, index=False)
+    print(f"Saved {len(jobs):,} ranked jobs to {OUT} ({int(jobs['shortlist'].sum())} on the shortlist)")
+
+
 def main():
     jobs = pd.read_csv(JOBS)
+    if not setting("check_sponsorship", True):
+        return rank_without_sponsors(jobs, "switched off in the settings")
+    if not SPONSORS.exists():
+        return rank_without_sponsors(jobs, f"no sponsor list at {SPONSORS}; see README > Setup")
     sponsors = pd.read_csv(SPONSORS)
     aliases = pd.read_csv(ALIASES).fillna("")
 
