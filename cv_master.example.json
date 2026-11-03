@@ -160,7 +160,8 @@
         "Data analysis",
         "Reporting",
         "Git / GitHub"
-      ]
+      ],
+      "repo": "ireland-job-match"
     },
     {
       "title": "Olist E-commerce Sales & Delivery Analysis",
@@ -175,7 +176,8 @@
         "E-commerce",
         "Data analysis",
         "Customer service"
-      ]
+      ],
+      "repo": "olist-sales-ops"
     },
     {
       "title": "MSc Thesis: How Crime Shapes Property Values in Ireland",
@@ -188,7 +190,8 @@
         "Statistics",
         "Data analysis",
         "Data quality / cleaning"
-      ]
+      ],
+      "repo": "irish-house-prices-crime"
     },
     {
       "title": "Wicklow County Council Public Spend Analysis",
@@ -201,7 +204,8 @@
         "Data quality / cleaning",
         "Data analysis",
         "KPI / performance reporting"
-      ]
+      ],
+      "repo": "irish-public-spend-analysis"
     },
     {
       "title": "Irish County Forecasts",
@@ -212,7 +216,8 @@
         "Forecasting",
         "Statistics",
         "Predictive modelling / ML"
-      ]
+      ],
+      "repo": "irish-county-forecasts"
     }
   ],
   "max_projects": 3,
@@ -434,5 +439,10 @@
     "LinkedIn Learning: Salesforce Essentials Training",
     "LinkedIn Learning: SEO Expert",
     "LinkedIn Learning: Email Marketing: Strategy and Optimization"
-  ]
+  ],
+  "portfolio_github_user": "Ayoola-droid",
+  "portfolio_ignore": {
+    "Analytics": "empty repository",
+    "GEO_coding-": "data preparation for the MSc thesis (covered by irish-house-prices-crime)"
+  }
 }
