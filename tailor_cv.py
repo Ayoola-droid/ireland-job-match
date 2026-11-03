@@ -60,7 +60,9 @@ def requirements(text):
     admin = re.compile(r"closing date|incremental credit|criteria listed below|eligib|garda vetting|"
                        r"terms and conditions|superannuation|annual leave|compensation|without regard|"
                        r"protected by law|equal opportunit|on the basis of merit|discharge of the office|"
-                       r"holding the office|good character|state of health|requisite knowledge", re.I)
+                       r"holding the office|good character|state of health|requisite knowledge|"
+                       r"application form|by email|microsoft word|own work|\bsubmit|applications? (?:must|will)|"
+                       r"shortlist|canvassing|curriculum vitae|\bCVs?\b|interview", re.I)
     keep = re.compile(r"\bexperience (?:in|with|of|applying|working|using|across|of)|\byears\b|ability to|"
                       r"\bskills\b|proficien|knowledge of|demonstrat|qualification|\bdegree\b|\bmust\b", re.I)
     seen, out = set(), []

@@ -4,13 +4,16 @@
    one request per second, and saves dated raw copies in data/raw/hse/.
 2. Keeps jobs in your chosen categories posted in the last DAYS days.
 3. Opens each of those jobs to read grade, advertisement type (who can
-   apply), closing date and the short role summary. If the job has a Word
-   job specification attached, it reads the text from that too.
+   apply), closing date and the short role summary. From the Word files
+   under "Related files" it reads the Job Specification (the duties and
+   requirements) and the Application Form (the competency questions you
+   must answer; the form is saved in data/raw/hse/forms/ to fill in).
 Contact names, emails and phone numbers on the pages are NOT kept.
 Saves data/processed/jobs_hse.csv in the same layout as jobs_greenhouse.csv.
 """
 import html
 import io
+import json
 import re
 import time
 import zipfile
@@ -20,6 +23,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from form_questions import forbids_ai, questions_from_docx
 from settings import setting
 
 # ---- Settings you can change ------------------------------------------------
@@ -103,6 +107,26 @@ def docx_text(content):
     return html.unescape(re.sub(r"<[^>]+>", "", xml))
 
 
+DOC_LINK = re.compile(r'href="([^"]+\.docx)"[^>]*>\s*<div class="hse-doc-link__title">\s*([^<]+)', re.I)
+
+
+def related_files(raw_page):
+    """The Word files under 'Related files', by their title: {'Job Specification': url, ...}."""
+    files = {}
+    for url, title in DOC_LINK.findall(raw_page):
+        url = html.unescape(url)
+        files[html.unescape(title).strip()] = BASE + url if url.startswith("/") else url
+    return files
+
+
+def pick(files, pattern):
+    """The url of the first related file whose title (or file name) matches the pattern."""
+    for title, url in files.items():
+        if re.search(pattern, title + " " + url.rsplit("/", 1)[-1], re.I):
+            return url
+    return ""
+
+
 def main():
     # 1. All listing pages (numbered from 1: page 0 comes back empty)
     cards, page, last_page = [], 1, MAX_PAGES
@@ -138,17 +162,25 @@ def main():
         detail = {label: field(text, label) for label in
                   ["Reference", "Grade", "Advertisement Type", "Contract type", "Closing date",
                    "Post specific related information", "Before you apply"]}
-        spec_text, spec_url = "", ""
         raw_page = (RAW_DIR / f"job_{slug}_{TODAY}.html").read_text(encoding="utf-8", errors="ignore")
-        spec = re.search(r'href="([^"]+\.docx)"', raw_page, re.I)
-        if spec:
-            spec_url = html.unescape(spec.group(1))
-            if spec_url.startswith("/"):
-                spec_url = BASE + spec_url
-            try:
+        files = related_files(raw_page)
+        # The Job Specification, NOT the first Word file: that is often the 'Additional Campaign
+        # Information' (how to apply by email), which would be mistaken for the job's requirements.
+        spec_url = pick(files, r"job spec|job description|_spec")
+        form_url = pick(files, r"application form|achievements form")
+        spec_text, questions, form_file, no_ai = "", [], "", False
+        try:
+            if spec_url:
                 spec_text = docx_text(get(spec_url).content)
-            except Exception as error:  # a broken attachment shouldn't stop the run
-                print(f"  ! could not read job spec for {slug}: {error}")
+            if form_url:
+                content = get(form_url).content
+                form_file = RAW_DIR / "forms" / f"{detail['Reference'] or slug}_Application_Form.docx"
+                form_file.parent.mkdir(parents=True, exist_ok=True)
+                form_file.write_bytes(content)
+                questions = questions_from_docx(content)
+                no_ai = forbids_ai(content)  # e.g. "Do not use AI to complete the application form"
+        except Exception as error:  # a broken attachment shouldn't stop the run
+            print(f"  ! could not read the Word files for {slug}: {error}")
         closing = pd.to_datetime(detail["Closing date"][:10], format="%d/%m/%Y", errors="coerce")
         rows.append({
             "company": "HSE",
@@ -167,9 +199,13 @@ def main():
             "closing_date": closing.date() if pd.notna(closing) else None,
             "still_open": bool(pd.notna(closing) and closing.date() >= datetime.now().date()),
             "has_job_spec": bool(spec_text),
+            "form_file": str(form_file),
+            "form_questions": json.dumps(questions, ensure_ascii=False),
+            "form_no_ai": no_ai,
         })
         print(f"  {job['title'][:60]:<60} | {detail['Grade'][:18]:<18} | {detail['Advertisement Type'] or '?'}"
-              f" | closes {detail['Closing date'][:10] or '?'} | spec: {'yes' if spec_text else 'no'}")
+              f" | closes {detail['Closing date'][:10] or '?'} | spec: {'yes' if spec_text else 'no'}"
+              f" | form questions: {len(questions)}")
 
     out = pd.DataFrame(rows)
     OUT.parent.mkdir(parents=True, exist_ok=True)
