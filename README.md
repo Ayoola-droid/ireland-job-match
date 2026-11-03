@@ -4,7 +4,7 @@
 
 **Data:**
 - [DETE employment permits issued to companies 2026](https://enterprise.gov.ie/en/publications/employment-permit-statistics-2026.html), Department of Enterprise, Tourism and Employment (Jan–Sep 2026, published monthly)
-- Live job ads from company career boards on [Greenhouse](https://developers.greenhouse.io/job-board.html) (public job-board API, no key needed)
+- Live job ads from company career boards: the free public job feeds of [Greenhouse](https://developers.greenhouse.io/job-board.html), Lever, Ashby and Workable (no key needed), plus companies' own careers pages
 - Live HSE job ads from [about.hse.ie](https://about.hse.ie/jobs/job-search/) (public pages; robots.txt allows the jobs section)
 - Optional: [Jooble](https://ie.jooble.org/api/about) job-search API (free key) for small companies and recruiters, and any job ad you add by its link
 - HSE consolidated pay scales by grade (June 2026), stored in `hse_grade_pay.csv`
@@ -24,7 +24,8 @@ You don't need to be in data analytics or need a visa: the app is built from **y
    - the places to search, e.g. `london|manchester|remote`
    - the currency and your salary floor (0 = none)
    - the English you write in
-   - the company career boards to read: any company on Greenhouse
+   - the company career boards to read: any company on Greenhouse, Lever, Ashby or Workable, or any careers page
+   - with visa sponsorship on, **Find sponsors' career sites** checks which employers on the permit list have a public job board, so their vacancies are read directly
    - whether you need **visa sponsorship**. Untick it if you can already work there: jobs are then ranked by skill match only, and the Irish sponsor data isn't needed.
 5. Click **Run everything**, then go to **3. Shortlist** to make a tailored CV, cover letter or competency answers for each job, and log each application. The questions come from the employer's application form (found automatically for HSE jobs, or upload any form).
    - Where a form says not to use AI (as HSE forms do), the app warns you and offers an **answer plan** instead: the best examples from your CV for each question, for you to write up.
@@ -56,7 +57,7 @@ All your settings are kept in `app_settings.json`, your skills in `skills_vocab.
 ## Method
 
 1. **Sponsor list** (`clean_sponsors.py`): load the DETE file, check that employers add up to the Total row for every month, drop the Total row, fill blanks with 0, and build a matching key (upper case, `&` → AND, no punctuation, legal endings such as LIMITED/DAC/PLC removed). Names that share a key are flagged, not merged.
-2. **Jobs** (`fetch_greenhouse.py`, `fetch_hse.py`): download ads with full descriptions, keep Irish locations, and save dated raw copies. For HSE, read grade, advertisement type (who can apply), closing date, and the Word job specification where one is attached.
+2. **Jobs** (`fetch_boards.py`, `fetch_hse.py`, optionally `fetch_jooble.py`; fetched at the same time, and ads read on an earlier run are reused): download ads with full descriptions, keep Irish locations, and save dated raw copies. For HSE, read grade, advertisement type (who can apply), closing date, and the Word job specification where one is attached.
 3. **Scoring** (`score_jobs.py`): remove company boilerplate, find skills from `skills_vocab.csv` in each ad, and compute a weighted skill score (technical skills weight 3, general skills weight 1). Then apply nine tests: recent, still open, open to me, right level, pay at or above €40,904, years of experience, language, skills, and not already applied to. Every test has its own column, so the output shows why a job was left out.
 4. **Sponsor evidence** (`add_sponsors.py`): join jobs to the DETE list through `company_aliases.csv`, and rate each employer as *strong* (10+ permits across 6+ months), *some* or *not on list*.
 5. **Tailored CV** (`tailor_cv.py`): my CV is stored as small, true, skill-tagged pieces in `cv_master.json`. For a chosen job, the script ranks each piece by the weight of its tags that the job asks for (plus shared words), then keeps the most relevant summary sentences, projects and bullets and lists matching skills first, in bold. It never writes new claims, only chooses and reorders. It also writes a checklist that pairs each requirement in the ad with my best evidence (STRONG, SOME or no clear match).
@@ -87,7 +88,7 @@ All your settings are kept in `app_settings.json`, your skills in `skills_vocab.
 The easiest way is the app: double-click `start_app.bat` and use the buttons. Each button runs the scripts below, which still work on their own (in VS Code, open each file and click ▶), in this order:
 
 1. `clean_sponsors.py`: only when a new month of DETE data is published
-2. `fetch_greenhouse.py` and `fetch_hse.py`: download today's jobs
+2. `fetch_boards.py`, `fetch_hse.py` (and `fetch_jooble.py` if switched on): download today's jobs
 3. `score_jobs.py`: its settings (time frame, years, salary floor, minimum score…) come from `app_settings.json`, which the app's sliders save
 4. `add_sponsors.py`: writes `data/processed/jobs_ranked.csv`
 5. `tailor_cv.py`: pick a shortlisted job; writes `output/CV_<company>_<id>.docx` and `output/NOTES_<company>_<id>.md`
@@ -116,7 +117,9 @@ The data isn't in the repository. Only if you need Irish visa sponsorship: downl
 | `inspect_sponsors.py` | First look at the raw DETE file (sheets, header, Total row) |
 | `clean_sponsors.py` | Reconciles and cleans the sponsor list → `data/processed/sponsors_2026.csv` |
 | `find_sponsor.py` | Searches the sponsor list by name, to fill in `company_aliases.csv` |
-| `fetch_greenhouse.py` | Downloads ads from the boards in `companies.csv` → `jobs_greenhouse.csv` |
+| `fetch_boards.py` | Downloads ads from the boards in `companies.csv`, four at a time → `jobs_boards.csv` (`fetch_greenhouse.py` still works and runs it) |
+| `ats_feeds.py` | Readers for each hiring system's public feed (Greenhouse, Lever, Ashby, Workable) and for careers pages |
+| `find_sponsor_boards.py` | Checks which employers on the permit list have a public job board → `sponsor_boards.csv` |
 | `download_hse_sample.py` | Saves one HSE page to inspect its structure (exploration step) |
 | `fetch_hse.py` | Reads all HSE listings and job pages → `jobs_hse.csv` |
 | `fetch_jooble.py` | Searches Jooble for your search words → `jobs_jooble.csv` (needs a free key in `JOOBLE_API_KEY`) |
