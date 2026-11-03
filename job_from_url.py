@@ -74,6 +74,8 @@ def read_job_page(url):
     """{title, company, location, first_published, description, url} from a job ad's web page."""
     response = requests.get(url, headers=HEADERS, timeout=30, allow_redirects=True)
     response.raise_for_status()
+    if "charset" not in response.headers.get("Content-Type", "").lower():
+        response.encoding = "utf-8"  # most sites are UTF-8; without this "€" can turn into "â‚¬"
     page = response.text
     postings = job_postings(page)
     if postings:
