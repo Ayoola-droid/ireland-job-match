@@ -6,6 +6,7 @@
 - [DETE employment permits issued to companies 2026](https://enterprise.gov.ie/en/publications/employment-permit-statistics-2026.html), Department of Enterprise, Tourism and Employment (Jan–Sep 2026, published monthly)
 - Live job ads from company career boards on [Greenhouse](https://developers.greenhouse.io/job-board.html) (public job-board API, no key needed)
 - Live HSE job ads from [about.hse.ie](https://about.hse.ie/jobs/job-search/) (public pages; robots.txt allows the jobs section)
+- Optional: [Jooble](https://jooble.org/api/about) job-search API (free key) for small companies and recruiters, and any job ad you add by its link
 - HSE consolidated pay scales by grade (June 2026), stored in `hse_grade_pay.csv`
 
 **Tools:** Python 3.12 (pandas, requests, openpyxl, python-docx, Streamlit), regular expressions, a local or cloud AI model, Excel, Word
@@ -118,6 +119,9 @@ The data isn't in the repository. Only if you need Irish visa sponsorship: downl
 | `fetch_greenhouse.py` | Downloads ads from the boards in `companies.csv` → `jobs_greenhouse.csv` |
 | `download_hse_sample.py` | Saves one HSE page to inspect its structure (exploration step) |
 | `fetch_hse.py` | Reads all HSE listings and job pages → `jobs_hse.csv` |
+| `fetch_jooble.py` | Searches Jooble for your search words → `jobs_jooble.csv` (needs a free key in `JOOBLE_API_KEY`) |
+| `job_from_url.py` | Reads one job ad from its web address (or pasted text) → `jobs_manual.csv` |
+| `form_questions.py` | Finds the questions in an application form, and whether it forbids AI |
 | `score_jobs.py` | Removes boilerplate, scores skills, applies the nine tests → `jobs_scored.csv` |
 | `add_sponsors.py` | Adds sponsor evidence and ranks the shortlist → `jobs_ranked.csv` |
 | `tailor_cv.py` | Builds a tailored Word CV and an evidence checklist for one shortlisted job → `output/` |
