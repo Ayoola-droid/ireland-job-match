@@ -11,5 +11,13 @@
   "include_internal": false,
   "hse_categories": [
     "Management/Admin/ICT"
-  ]
+  ],
+  "app_name": "Ireland Job Match",
+  "location_label": "Ireland",
+  "location_words": "ireland|dublin|cork|galway|limerick|waterford",
+  "currency": "\u20ac",
+  "writing_english": "UK/Irish English",
+  "check_sponsorship": true,
+  "use_greenhouse": true,
+  "use_hse": true
 }

@@ -1,7 +1,7 @@
 """Greenhouse offers a free, public job-board API (no key needed).
 For each company in companies.csv this script:
   1. downloads its job list with descriptions; saves a dated raw copy in data/raw/greenhouse/
-  2. keeps jobs located in Ireland
+  2. keeps jobs in the places you chose (the "location_words" setting, e.g. Ireland's cities)
   3. works out how many days ago each job was first published
 and saves the result to data/processed/jobs_greenhouse.csv for score_jobs.py.
 """
@@ -14,7 +14,10 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-IRELAND_PATTERN = r"ireland|dublin|cork|galway|limerick|waterford"
+from settings import setting
+
+# Places to keep, separated by | (change them in the app, or in app_settings.json)
+LOCATION_PATTERN = setting("location_words", "ireland|dublin|cork|galway|limerick|waterford")
 
 COMPANIES = Path("companies.csv")
 RAW_DIR = Path("data/raw/greenhouse")
@@ -73,16 +76,16 @@ def main():
 
     jobs["first_published"] = pd.to_datetime(jobs["first_published"], utc=True, errors="coerce")
     jobs["days_old"] = (datetime.now(timezone.utc) - jobs["first_published"]).dt.days.astype("Int64")
-    ireland = jobs[jobs["location"].str.contains(IRELAND_PATTERN, case=False, na=False)].copy()
+    local = jobs[jobs["location"].str.contains(LOCATION_PATTERN, case=False, na=False)].copy()
 
-    no_text = (ireland["description"].str.len() < 200).sum()
+    no_text = (local["description"].str.len() < 200).sum()
     print(f"\nAll jobs downloaded: {len(jobs):,}")
-    print(f"Located in Ireland: {len(ireland):,}")
-    print(f"Ireland jobs with little or no description text: {no_text}")
+    print(f"In your locations ({LOCATION_PATTERN}): {len(local):,}")
+    print(f"Of those, jobs with little or no description text: {no_text}")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    ireland.sort_values("days_old").to_csv(OUT, index=False)
-    print(f"\nSaved {len(ireland):,} Ireland jobs to {OUT}")
+    local.sort_values("days_old").to_csv(OUT, index=False)
+    print(f"\nSaved {len(local):,} jobs to {OUT}")
     print("Next: run score_jobs.py")
 
 
