@@ -25,7 +25,8 @@ from settings import setting
 MASTER = Path("cv_master.json")
 VOCAB = Path("skills_vocab.csv")
 RANKED = Path("data/processed/jobs_ranked.csv")
-JOB_FILES = [Path("data/processed/jobs_greenhouse.csv"), Path("data/processed/jobs_hse.csv")]
+JOB_FILES = [Path("data/processed/jobs_greenhouse.csv"), Path("data/processed/jobs_hse.csv"),
+             Path("data/processed/jobs_jooble.csv"), Path("data/processed/jobs_manual.csv")]
 OUT_DIR = Path("output")
 ACCENT = RGBColor(0x1F, 0x5C, 0x7A)
 
@@ -185,7 +186,8 @@ def apply_rewordings(content, proposals, accepted):
 
 def job_context(job):
     """The full ad text of a shortlisted job, and the skills it matched or missed."""
-    jobs = pd.concat([pd.read_csv(p) for p in JOB_FILES if p.exists()], ignore_index=True)
+    jobs = pd.concat([pd.read_csv(p, dtype={"job_id": str}) for p in JOB_FILES
+                      if p.exists() and p.stat().st_size > 5], ignore_index=True)
     match = jobs[(jobs["source"] == job["source"]) & (jobs["job_id"].astype(str) == str(job["job_id"]))]
     description = match["description"].iloc[0] if len(match) else ""
     return {"description": description,

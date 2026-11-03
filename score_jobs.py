@@ -1,6 +1,6 @@
 """Score each job against your skills and build a shortlist.
 
-Reads every job file in JOB_FILES (from fetch_greenhouse.py and fetch_hse.py) and
+Reads every job file in JOB_FILES (from the fetch_*.py scripts, plus jobs you added yourself) and
 skills_vocab.csv (your editable skills list). For each job it finds:
   - which skills the ad asks for, and how many of those you have (skill score)
   - the highest "X years" of experience the ad mentions
@@ -27,8 +27,10 @@ CURRENCY = setting("currency", "€")               # the symbol pay is written 
 INCLUDE_INTERNAL = setting("include_internal", False)  # True if eligible for HSE "Internal and Confined" jobs
 # -----------------------------------------------------------------------------
 
-SOURCES = {"greenhouse": Path("data/processed/jobs_greenhouse.csv"), "hse": Path("data/processed/jobs_hse.csv")}
-JOB_FILES = [path for name, path in SOURCES.items() if setting(f"use_{name}", True)]
+SOURCES = {"greenhouse": Path("data/processed/jobs_greenhouse.csv"), "hse": Path("data/processed/jobs_hse.csv"),
+           "jooble": Path("data/processed/jobs_jooble.csv")}
+MANUAL = Path("data/processed/jobs_manual.csv")  # jobs you added by link or pasted text: always scored
+JOB_FILES = [path for name, path in SOURCES.items() if setting(f"use_{name}", name != "jooble")] + [MANUAL]
 VOCAB = Path("skills_vocab.csv")
 HSE_PAY = Path("hse_grade_pay.csv")  # HSE pay scales by grade (June 2026)
 OUT = Path("data/processed/jobs_scored.csv")
@@ -117,10 +119,18 @@ def languages_required(title, text):
 
 
 def main():
-    frames = [pd.read_csv(p) for p in JOB_FILES if p.exists()]
+    frames = [pd.read_csv(p, dtype={"job_id": str}) for p in JOB_FILES if p.exists() and p.stat().st_size > 5]
     if not frames:
         raise SystemExit("No job files yet. Fetch jobs first (the 'Fetch new jobs' button).")
     jobs = pd.concat(frames, ignore_index=True)
+    # The same ad can come from two sources (e.g. a company's own board and Jooble): keep the first,
+    # which is the direct source, because the sources are read in that order
+    same = jobs["company"].str.lower().str.strip() + "|" + jobs["title"].str.lower().str.replace(r"\W+", " ", regex=True).str.strip()
+    first_source = jobs.groupby(same)["source"].transform("first")
+    repeat = jobs["source"] != first_source  # same company and title, but from a later source
+    if repeat.any():
+        print(f"Removed {int(repeat.sum())} ads also found on the company's own board or another source")
+        jobs = jobs[~repeat].reset_index(drop=True)
     print("Jobs per source:", jobs["source"].value_counts().to_dict())
     vocab = pd.read_csv(VOCAB)
     jobs["description"] = jobs["description"].fillna("")
@@ -167,7 +177,7 @@ def main():
     jobs.loc[found, "pay_max"] = from_text[found].str[1]
     jobs.loc[found, "pay_source"] = "ad text"
     print("Where the pay figure came from:", jobs["pay_source"].value_counts().to_dict(), "\n")
-    jobs["recent"] = jobs["days_old"] <= DAYS
+    jobs["recent"] = (jobs["days_old"] <= DAYS) | (jobs["source"] == "manual")  # you chose these yourself
 
     # Each test on its own column, so you can see WHY a job was left out
     jobs["ok_recent"] = jobs["recent"]

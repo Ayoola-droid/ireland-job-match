@@ -195,7 +195,8 @@ CHATTER = re.compile(r"^.*\b(let me know|would you like|shall I|I can (?:also|co
 
 def description_of(job):
     """The full ad text (the ranked file leaves it out to stay small)."""
-    jobs = pd.concat([pd.read_csv(p) for p in JOB_FILES if p.exists()], ignore_index=True)
+    jobs = pd.concat([pd.read_csv(p, dtype={"job_id": str}) for p in JOB_FILES
+                      if p.exists() and p.stat().st_size > 5], ignore_index=True)
     match = jobs[(jobs["source"] == job["source"]) & (jobs["job_id"].astype(str) == str(job["job_id"]))]
     return match["description"].iloc[0] if len(match) else ""
 
