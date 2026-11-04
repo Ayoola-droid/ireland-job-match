@@ -687,8 +687,15 @@ with tab_find:
                        "confirm. For employers with no board found, paste their careers page address. Tick the ones "
                        "to add, then add them to your career boards.")
             f1, f2 = st.columns([1, 2])
+            def save_min_permits():
+                # Runs as soon as the number changes, so it is kept even without clicking a button.
+                settings.save({"sponsor_board_min_permits": int(st.session_state["sponsor_min_permits"])})
+
             min_permits = f1.number_input("Employers with at least this many permits", 1, 300,
-                                          int(S.get("sponsor_board_min_permits", 10)))
+                                          int(S.get("sponsor_board_min_permits", 10)),
+                                          key="sponsor_min_permits", on_change=save_min_permits,
+                                          help="Saved as soon as you change it. 10 checks about 540 employers "
+                                               "(10-20 minutes); 2 checks over 3,000 (hours).")
             if f2.button("🔎 Search sponsors' job boards", type="primary",
                          help="The first run checks several hundred employers and takes 10-20 minutes; "
                               "later runs only check employers not checked before"):
@@ -757,6 +764,8 @@ with tab_find:
                        "use_jooble": use_jooble, "jooble_location": jooble_location.strip() or "Ireland",
                        "jooble_country": jooble_country,
                        "jooble_keywords": [w.strip() for w in jooble_words.split(",") if w.strip()]})
+        if "sponsor_min_permits" in st.session_state:  # the sponsor finder's number box, further down
+            settings.save({"sponsor_board_min_permits": int(st.session_state["sponsor_min_permits"])})
         st.success("Saved. Click 'Run everything' (new places or sources) or 'Score & rank' to apply them.")
         st.rerun()
 
