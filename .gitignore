@@ -11,3 +11,6 @@ logs/
 # Personal CV content with contact details (cv_master.example.json shows the layout)
 cv_master.json
 cv_master.backup.json
+
+# Private working notes (personal situation, setup details): kept on this computer only
+CLAUDE.md
