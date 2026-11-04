@@ -43,3 +43,5 @@ Microsoft Office / ICT skills,microsoft office|ms office|\bict skills|word and e
 KPI / performance reporting,\bkpis?\b|performance (?:reporting|monitoring|metrics),yes,no,1
 Payroll,\bpayroll\b,no,no,3
 Budgeting / financial management,budget|financial management|management accounts,no,no,1
+GIS / geospatial,\bgis\b|geospatial|arcgis|qgis|spatial analysis|geocod|\bsf package\b,yes,no,3
+Wireframing / prototyping,wirefram|prototyp|balsamiq|figma|\bux design,yes,no,1
