@@ -40,12 +40,14 @@ All your settings are kept in `app_settings.json`, your skills in `skills_vocab.
 4. **Company boilerplate distorts keyword matching.** Up to **60%** of an ad's text (Intercom, HSE) is repeated "About us", benefits and terms text. Removing sentences that recur across a company's ads stopped false matches such as a recruiting role "requiring" customer-service software skills.
 5. **Most ads don't state pay.** Only **17 of 237** tech-company ads in Ireland give a salary, so pay is flagged as "ask before applying" rather than assumed.
 6. **A skill score can overstate fit.** An HSE Grade VII *Data & Digital Communications* post scored 77%, but the requirement-by-requirement checklist showed that its essential criteria are extensive CRM and Salesforce experience. Counting skills is not enough; which skills are *essential* matters.
+7. **Weighting essential criteria fixed finding 6 (4 November 2026).** The scorer now reads each ad's headings (*Minimum requirements*, *What you'll need*, HSE *Post Specific Requirements* vs *Preferred qualifications*, *Nice to have*), counts must-have skills double and nice-to-haves half, and leaves out jobs that list a must-have I don't have. On the same 389 jobs the shortlist went from **25 to 17**, and none joined. All 8 that left were right to go: the two HSE posts whose must-haves include Salesforce (including the one from finding 6), software and ML roles needing Java or C++, and payroll posts. Ads that accept alternatives ("Salesforce *or similar CRM*", "*e.g.* AWS") are not treated as strict must-haves. Job-search snippets of a few words had scored 100%; they now score 40–57% and are labelled "snippet only".
 
 ## Skills demonstrated
 
 - Working with REST APIs and public web pages responsibly (robots.txt checked, one request per second, dated raw copies)
 - Data cleaning and reconciliation: the DETE file reconciles to its published totals for every month (29,989 permits)
 - Rule-based text classification with regular expressions, tuned against real false positives
+- Reading the structure of free text (requirement headings, "is a plus", "or similar") to weight what an employer really needs
 - Matching messy entity names (brand vs legal name) with a human-checked mapping file
 - Building a multi-step pipeline where each step does one job and can be rerun on its own
 - Privacy by design: personal names and contact details are never stored or committed
@@ -58,7 +60,7 @@ All your settings are kept in `app_settings.json`, your skills in `skills_vocab.
 
 1. **Sponsor list** (`clean_sponsors.py`): load the DETE file, check that employers add up to the Total row for every month, drop the Total row, fill blanks with 0, and build a matching key (upper case, `&` → AND, no punctuation, legal endings such as LIMITED/DAC/PLC removed). Names that share a key are flagged, not merged.
 2. **Jobs** (`fetch_boards.py`, `fetch_hse.py`, optionally `fetch_jooble.py`; fetched at the same time, and ads read on an earlier run are reused): download ads with full descriptions, keep Irish locations, and save dated raw copies. For HSE, read grade, advertisement type (who can apply), closing date, and the Word job specification where one is attached.
-3. **Scoring** (`score_jobs.py`): remove company boilerplate, find skills from `skills_vocab.csv` in each ad, and compute a weighted skill score (technical skills weight 3, general skills weight 1). Then apply nine tests: recent, still open, open to me, right level, pay at or above €40,904, years of experience, language, skills, and not already applied to. Every test has its own column, so the output shows why a job was left out.
+3. **Scoring** (`score_jobs.py`): remove company boilerplate, find skills from `skills_vocab.csv` in each ad, and compute a weighted skill score: technical skills weight 3, general skills weight 1, times 2 if the skill is under the ad's essential requirements and 0.5 if it is only *nice to have* (found from the ad's headings and from words next to the skill such as *required* or *is a plus*). One unseen technical skill is added to every ad, so a snippet that names two skills can't score 100%. Then apply ten tests: recent, still open, open to me, right level, pay at or above €40,904, years of experience, language, skills, no missing must-have, and not already applied to. Every test has its own column, so the output shows why a job was left out.
 4. **Sponsor evidence** (`add_sponsors.py`): join jobs to the DETE list through `company_aliases.csv`, and rate each employer as *strong* (10+ permits across 6+ months), *some* or *not on list*.
 5. **Tailored CV** (`tailor_cv.py`): my CV is stored as small, true, skill-tagged pieces in `cv_master.json`. For a chosen job, the script ranks each piece by the weight of its tags that the job asks for (plus shared words), then keeps the most relevant summary sentences, projects and bullets and lists matching skills first, in bold. It never writes new claims, only chooses and reorders. It also writes a checklist that pairs each requirement in the ad with my best evidence (STRONG, SOME or no clear match).
 6. **Application log** (`track_applications.py`): records each application (date, CV file sent, status) in `data/applications.csv`. The scorer leaves out jobs already applied to (same source and job ID) and flags look-alikes: same company, and titles sharing 80%+ of their words once reference codes and re-post words such as *Amended* or *Phase 2* are removed. Look-alikes are flagged, not hidden, because a re-post can be a new vacancy.
@@ -125,7 +127,7 @@ The data isn't in the repository. Only if you need Irish visa sponsorship: downl
 | `fetch_jooble.py` | Searches Jooble for your search words → `jobs_jooble.csv` (needs a free key in `JOOBLE_API_KEY`) |
 | `job_from_url.py` | Reads one job ad from its web address (or pasted text) → `jobs_manual.csv` |
 | `form_questions.py` | Finds the questions in an application form, and whether it forbids AI |
-| `score_jobs.py` | Removes boilerplate, scores skills, applies the nine tests → `jobs_scored.csv` |
+| `score_jobs.py` | Removes boilerplate, weights skills by how essential they are, applies the ten tests → `jobs_scored.csv` |
 | `add_sponsors.py` | Adds sponsor evidence and ranks the shortlist → `jobs_ranked.csv` |
 | `tailor_cv.py` | Builds a tailored Word CV and an evidence checklist for one shortlisted job → `output/` |
 | `track_applications.py` | Logs applications and their status → `data/applications.csv` (private); used by `score_jobs.py` to skip jobs already applied to |
