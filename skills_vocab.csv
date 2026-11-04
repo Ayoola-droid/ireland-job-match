@@ -44,5 +44,5 @@ KPI / performance reporting,\bkpis?\b|performance (?:reporting|monitoring|metric
 Payroll,\bpayroll\b,no,no,3
 Budgeting / financial management,budget|financial management|management accounts,no,no,1
 GIS / geospatial,\bgis\b|geospatial|arcgis|qgis|spatial analysis|geocod|\bsf package\b,yes,no,3
-Wireframing / prototyping,wirefram|prototyp|balsamiq|figma|\bux design,yes,no,1
+Wireframing / prototyping,wirefram|balsamiq|figma|\bux design|\bui/ux\b|mock-?ups? of|(?:design|ux|ui|clickable|website|app) prototyp,yes,no,1
 Marketing strategy,marketing strateg|marketing plan|market research|market entry|go-to-market|\bswot\b|\bpestle?\b,yes,no,1
