@@ -2,7 +2,9 @@
 
 Reads every job file in JOB_FILES (from the fetch_*.py scripts, plus jobs you added yourself) and
 skills_vocab.csv (your editable skills list). For each job it finds:
-  - which skills the ad asks for, and how many of those you have (skill score)
+  - which skills the ad asks for, how important each one is (under "Minimum requirements",
+    or only "Nice to have"), and how many of those you have (skill score)
+  - any must-have skill you don't have (the ok_essentials test)
   - the highest "X years" of experience the ad mentions
   - any non-English language the ad requires
   - whether the title is senior/manager level
@@ -43,9 +45,67 @@ SENIOR_PATTERN = r"senior|\bsr\b|staff|principal|\blead\b|head of|director|(?<!a
 YEARS_PATTERN = r"(\d{1,2})\s*\+?\s*(?:years|yrs)"
 BOILERPLATE_SHARE = 0.3  # a sentence in 30%+ of one company's ads is company boilerplate
 
+# ---- Essential vs nice-to-have skills ----------------------------------------
+# A skill under "Minimum requirements" counts more than one under "Nice to have".
+IMPORTANCE = {"essential": 2.0, "normal": 1.0, "desirable": 0.5}
+# Short ads (e.g. Jooble snippets) name only a few skills, so 2 out of 2 would look like 100%.
+# Each score is worked out as if the ad might ask for one more technical skill you haven't seen
+# (weight 3): long ads hardly change, short ones can't reach 100% on a handful of words.
+UNSEEN_WEIGHT = 3
+
+# Headings that start each part of an ad. They are matched only when they start with a capital
+# letter and the next item follows straight after, so a sentence such as "if you meet the
+# minimum requirements to apply" is not taken for a heading.
+ESSENTIAL_HEADINGS = [
+    r"minimum (?:requirements|qualifications)", r"basic qualifications",
+    r"required (?:skills|qualifications|experience)", r"(?:key |core |essential |job )?requirements",
+    r"essential(?: criteria| skills| experience)?", r"post specific requirements", r"eligibility criteria",
+    r"skills, competencies and/or knowledge", r"what you(?:'|’)?ll (?:need|bring)(?: to (?:thrive|succeed))?",
+    r"what you will (?:need|bring)", r"what we(?:'|’)?re looking for", r"what we are looking for",
+    r"who you are", r"about you", r"you (?:have|bring|will have)", r"must[- ]haves?",
+    r"qualifications(?: and experience)?", r"skills (?:and|&) experience", r"your (?:experience|profile|skills)",
+    r"what (?:skills )?(?:do i|will i|do you|will you) need\??"]
+DESIRABLE_HEADINGS = [
+    r"preferred (?:requirements|qualifications|skills|experience)", r"nice[- ]to[- ]haves?",
+    r"bonus (?:points|skills)(?: and attributes)?(?: if)?", r"desirable(?: criteria| skills| requirements| experience)?",
+    r"it(?:'|’)?s a (?:plus|bonus)(?: if)?", r"it would be (?:great|nice|a plus)(?: if)?", r"pluses",
+    r"extra credit", r"even better(?: if)?", r"additional skills", r"good to have"]
+OTHER_HEADINGS = [  # these end the requirements: duties, the company, benefits, pay
+    r"about (?:us|the (?:team|role|company|job|position))", r"about [A-Z]\w+", r"benefits", r"what we offer",
+    r"perks", r"why (?:join|work)", r"our (?:benefits|commitment|values|mission|culture)",
+    r"equal (?:employment )?opportunit\w+", r"how to apply",
+    r"(?:key |principal )?(?:duties|responsibilities)(?: and responsibilities)?", r"what you(?:'|’)?ll do",
+    r"what you will do", r"what will (?:i|you) be doing\??", r"the role", r"in this role", r"purpose of the post", r"remuneration", r"salary",
+    r"working hours", r"when you join", r"unleash your potential", r"life at [A-Z]\w+"]
+# Words next to a skill that say how much it matters ("SQL is a plus", "Python required")
+DESIRABLE_CUE = re.compile(r"\bplus\b|\bbonus\b|nice[- ]to[- ]have|\bpreferred\b|\bpreferabl\w*|\bdesirabl\w*"
+                           r"|\badvantage\w*|\bbeneficial\b|\bideally\b|\bwould be great\b|\bnot (?:required|essential)\b",
+                           re.IGNORECASE)
+# "Salesforce (or similar CRM)", "SAP or equivalent", "e.g. AWS": the ad accepts other tools, so not a strict must-have
+ALTERNATIVE_CUE = re.compile(r"\bor (?:a |any )?(?:similar|equivalent|comparable|other)\b|\be\.g\.|\bsuch as\b"
+                             r"|\bfor (?:example|instance)\b|\betc\b",
+                             re.IGNORECASE)
+ESSENTIAL_CUE = re.compile(r"\bmust\b|\brequired\b|\bessential\b|\bmandatory\b|\bextensive\b|\bsignificant experience\b",
+                           re.IGNORECASE)
+CUE_BEFORE, CUE_AFTER = 40, 60  # how many characters either side of the skill to look at
+
+
+def _heading_regex(phrases):
+    return re.compile(r"(?i:\b(?:" + "|".join(phrases) + r"))(?:\s*\([^)]{0,40}\))?\s*[:\-–—]?"
+                      r"(?=\s*(?:[A-Z0-9•·▪*\-]|\n|$))")
+
+
+HEADINGS = [(kind, _heading_regex(phrases)) for kind, phrases in
+            [("essential", ESSENTIAL_HEADINGS), ("desirable", DESIRABLE_HEADINGS), ("normal", OTHER_HEADINGS)]]
+
 
 def split_sentences(text):
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+
+
+def is_heading(sentence):
+    """A short sentence that is one of the requirement headings ("What skills do I need?")."""
+    return len(sentence) <= 60 and any(rx.match(sentence) for _, rx in HEADINGS)
 
 
 def remove_boilerplate(jobs):
@@ -64,8 +124,9 @@ def remove_boilerplate(jobs):
                 counts[sentence] = counts.get(sentence, 0) + 1
         limit = max(2, BOILERPLATE_SHARE * len(group))
         for idx, sentences in sentence_lists.items():
-            # short sentences ("Python.") are always kept: too short to be boilerplate
-            cores[idx] = " ".join(s for s in sentences if len(s) <= 20 or counts[s] < limit)
+            # short sentences ("Python.") are always kept: too short to be boilerplate. Headings such as
+            # "What skills do I need?" repeat in every ad too, but are kept: they show what is essential
+            cores[idx] = " ".join(s for s in sentences if len(s) <= 20 or counts[s] < limit or is_heading(s))
     return cores
 
 
@@ -105,6 +166,64 @@ def find_skills(text, vocab):
                 missing.append(skill)
                 w_missing += weight
     return have, missing, w_have, w_missing
+
+
+def requirement_sections(text):
+    """Split an ad into parts by its headings. Returns [(start, end, kind)], where kind is
+    'essential' (Minimum requirements, Who you are...), 'desirable' (Nice to have, Preferred...)
+    or 'normal' (everything else: the intro, duties, About us...)."""
+    marks = sorted((m.start(), m.end(), kind) for kind, rx in HEADINGS for m in rx.finditer(text)
+                   if m.group(0)[0].isupper())
+    headings = []
+    for start, end, kind in marks:  # "Preferred requirements" also contains "requirements": keep the first
+        if not headings or start >= headings[-1][1]:
+            headings.append((start, end, kind))
+    sections, pos, kind = [], 0, "normal"
+    for start, end, next_kind in headings:
+        sections.append((pos, start, kind))
+        pos, kind = end, next_kind
+    sections.append((pos, len(text), kind))
+    return [s for s in sections if s[1] > s[0]]
+
+
+def importance_at(text, start, end, sections):
+    """How much one mention of a skill matters: its section first, then the words around it
+    in the same sentence or list item ('...is a plus' makes it desirable, '...required' essential)."""
+    kind = next((k for s, e, k in sections if s <= start < e), "normal")
+    before = re.split(r"[.!?;\n•]", text[max(0, start - CUE_BEFORE):start])[-1]
+    after = re.split(r"[.!?;\n•]", text[end:end + CUE_AFTER])[0]
+    nearby = before + " " + after
+    if DESIRABLE_CUE.search(nearby):
+        return "desirable"
+    if ALTERNATIVE_CUE.search(nearby):
+        return "normal"
+    if kind == "normal" and ESSENTIAL_CUE.search(nearby):
+        return "essential"
+    return kind
+
+
+def rate_skills(text, vocab):
+    """Like find_skills, but also says how important each skill is in this ad.
+    A skill mentioned several times takes its most important mention.
+    Returns {skill: (importance, you_have_it, weight)}."""
+    if isinstance(vocab, pd.DataFrame):
+        vocab = compile_vocab(vocab)
+    sections = requirement_sections(text)
+    rank = {"desirable": 0, "normal": 1, "essential": 2}
+    found = {}
+    for skill, pattern, i_have_it, weight in vocab:
+        levels = [importance_at(text, m.start(), m.end(), sections) for m in pattern.finditer(text)]
+        if levels:
+            found[skill] = (max(levels, key=rank.get), i_have_it, weight)
+    return found
+
+
+def score_from_rated(found):
+    """Weighted share of the ad's skills you have: weight (3 technical, 1 general) times importance
+    (essential 2, normal 1, nice to have 0.5), with one unseen technical skill added (UNSEEN_WEIGHT)."""
+    w_have = sum(w * IMPORTANCE[imp] for imp, have, w in found.values() if have)
+    w_all = sum(w * IMPORTANCE[imp] for imp, have, w in found.values())
+    return round(w_have / (w_all + UNSEEN_WEIGHT), 2) if w_all else float("nan")
 
 
 def years_required(text):
@@ -152,15 +271,22 @@ def main():
     print(jobs.groupby("company")["boilerplate_share"].mean().map("{:.0%}".format).to_string(), "\n")
 
     compiled = compile_vocab(vocab)
-    results = jobs.apply(lambda j: find_skills(j["title"] + " " + j["core_text"], compiled), axis=1)
-    jobs["skills_you_have"] = [", ".join(r[0]) for r in results]
-    jobs["skills_missing"] = [", ".join(r[1]) for r in results]
-    jobs["n_have"] = [len(r[0]) for r in results]
-    jobs["n_asked"] = [len(r[0]) + len(r[1]) for r in results]
-    # Weighted score: technical skills (weight 3) count more than general ones (weight 1)
-    w_have = pd.Series([r[2] for r in results], index=jobs.index)
-    w_all = pd.Series([r[2] + r[3] for r in results], index=jobs.index)
-    jobs["skill_score"] = (w_have / w_all).where(w_all > 0).round(2)
+    rated = jobs.apply(lambda j: rate_skills(j["title"] + "\n" + j["core_text"], compiled), axis=1)
+    jobs["skills_you_have"] = [", ".join(s for s, (_, have, _) in r.items() if have) for r in rated]
+    jobs["skills_missing"] = [", ".join(s for s, (_, have, _) in r.items() if not have) for r in rated]
+    jobs["essentials_you_have"] = [", ".join(s for s, (imp, have, _) in r.items() if have and imp == "essential")
+                                   for r in rated]
+    jobs["essentials_missing"] = [", ".join(s for s, (imp, have, _) in r.items() if not have and imp == "essential")
+                                  for r in rated]
+    jobs["nice_to_have"] = [", ".join(s for s, (imp, _, _) in r.items() if imp == "desirable") for r in rated]
+    jobs["n_have"] = [sum(have for _, have, _ in r.values()) for r in rated]
+    jobs["n_asked"] = [len(r) for r in rated]
+    # The old score (every skill counts the same) is kept for comparison
+    jobs["skill_score_simple"] = [round(sum(w for _, h, w in r.values() if h) / sum(w for _, _, w in r.values()), 2)
+                                  if r else float("nan") for r in rated]
+    # Weighted score: technical skills (3) count more than general ones (1), essential ones (x2) more than
+    # nice-to-haves (x0.5), and short ads can't reach 100% on a few words (see UNSEEN_WEIGHT)
+    jobs["skill_score"] = [score_from_rated(r) for r in rated]
 
     jobs["years_required"] = jobs["core_text"].apply(years_required)
     jobs["languages_required"] = jobs.apply(
@@ -204,6 +330,9 @@ def main():
     # Salary: checked when the pay is known; unknown pay passes, flagged as 'ask at interview'
     jobs["ok_salary"] = jobs["pay_min"].isna() | (jobs["pay_min"] >= SALARY_FLOOR)
     jobs["ok_skills"] = (jobs["skill_score"] >= MIN_SCORE) & (jobs["n_have"] >= MIN_SKILLS_MATCHED)
+    # Must-haves: an ad that lists a skill you don't have under its essential requirements is left out
+    # (it shows as a near miss, so you can still decide for yourself)
+    jobs["ok_essentials"] = jobs["essentials_missing"] == ""
 
     # Never apply twice: leave out jobs already in data/applications.csv, flag look-alikes
     log = load_log()
@@ -212,18 +341,18 @@ def main():
     print(f"Applications in your log: {len(log)}")
 
     tests = ["ok_recent", "ok_open", "ok_eligible", "ok_level", "ok_salary", "ok_years", "ok_language",
-             "ok_skills", "ok_not_applied"]
+             "ok_skills", "ok_essentials", "ok_not_applied"]
     jobs["shortlist"] = jobs[tests].all(axis=1)
 
     print("How many jobs pass each test:")
     for test in tests:
-        print(f"  {test:<12} {jobs[test].sum():>4} of {len(jobs)}")
-    print(f"  {'ALL TESTS':<12} {jobs['shortlist'].sum():>4}")
+        print(f"  {test:<15} {jobs[test].sum():>4} of {len(jobs)}")
+    print(f"  {'ALL TESTS':<15} {jobs['shortlist'].sum():>4}")
 
     recent = jobs[jobs["ok_recent"]]
     print(f"\nWhy recent jobs were left out (a job can fail more than one test):")
     for test in tests[1:]:
-        print(f"  failed {test:<12} {(~recent[test]).sum():>4}")
+        print(f"  failed {test:<15} {(~recent[test]).sum():>4}")
 
     shortlist = jobs[jobs["shortlist"]].sort_values(["skill_score", "n_have"], ascending=False)
     print(f"\nSHORTLIST ({len(shortlist)} jobs, best match first):")
@@ -243,6 +372,8 @@ def main():
         print(f"    score {j['skill_score']:.0%} ({j['n_have']} of {j['n_asked']} skills)"
               f" | years asked: {int(j['years_required']) if pd.notna(j['years_required']) else '-'}")
         print(f"    you have: {j['skills_you_have']}")
+        if j["essentials_you_have"]:
+            print(f"    must-haves you have: {j['essentials_you_have']}")
         if j["skills_missing"]:
             print(f"    missing:  {j['skills_missing']}")
         print(f"    {j['url']}")
@@ -258,7 +389,8 @@ def main():
                   "salary": f"starts at {j['pay_min']:,.0f}" if pd.notna(j.get("pay_min")) else "",
                   "years": f"asks {int(j['years_required']) if pd.notna(j['years_required']) else '?'} yrs",
                   "language": j["languages_required"], "level": "senior title",
-                  "skills": f"{j['n_have']} of {j['n_asked']} skills"}.get(failed, "")
+                  "skills": f"{j['n_have']} of {j['n_asked']} skills",
+                  "essentials": f"must have {j['essentials_missing']}"}.get(failed, "")
         print(f"  {j['company']} | {j['title']} | failed: {failed} ({detail})")
 
     unscored = jobs[jobs["ok_recent"] & jobs["ok_level"] & jobs["ok_years"] & jobs["ok_language"] & (jobs["n_asked"] == 0)]
