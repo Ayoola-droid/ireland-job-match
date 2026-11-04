@@ -328,7 +328,8 @@ Got a newer CV later? Drop it in and choose **Add only what's new**.""")
             st.markdown("""**3. Shortlist & documents** · *for each job you like*
 1. Found a job yourself? Open **➕ Add a job by link** at the top, paste its address and click
    **🔍 Read this job**, then **➕ Add and score this job**.
-2. Choose a job. Read **You have** and **Missing**.
+2. Choose a job. Read **You have**, **Missing** and the **Must-haves**: skills listed under the ad's
+   requirements count double, nice-to-haves count half.
 3. **📄 Make tailored CV**: preview it, then **⬇ Download**.
 4. **✉ Write cover letter**, or answer the form's questions: they're filled in from the
    application form when the app finds one; you can also upload a form or paste questions.
@@ -359,6 +360,10 @@ Change each job's status (interview, offer, rejected, no reply), add notes, then
   point to your evidence. Checks flag invented numbers, skills you don't have, and projects described as jobs.
 - **Some employers forbid AI.** HSE forms say *"Do not use AI to complete the application form"*. For those,
   use **📝 Make answer plan (no AI)**: the best examples from your CV for each question, for you to write up.
+- **How the skill match works.** Each skill in the ad counts 3 if technical, 1 if general; double if it is
+  under the ad's requirements (*Minimum requirements*, *What you'll need*…), half if only *nice to have*.
+  A job that lists a must-have you don't have is left off the shortlist (it shows as a near miss).
+  Short ads can't reach 100%: a few words don't prove a good fit.
 - **Your data stays here.** Your CV (`cv_master.json`), the jobs and your applications are kept in this folder
   and are never uploaded to GitHub.
 - **Something went wrong?** Each button shows the script's output; a red ❌ box explains the error.
@@ -849,7 +854,8 @@ with tab_short:
         tests = [c for c in short.columns if c.startswith("ok_")]
         show["note"] = short.apply(lambda j: ("added by you" + ("" if j["shortlist"] else ": misses " + ", ".join(
             t[3:] for t in tests if not j[t]))) if j["source"] == "manual" else
-            ("via " + str(j.get("found_via") or "Jooble") if j["source"] == "jooble" else ""), axis=1)
+            ("via " + str(j.get("found_via") or "Jooble") if j["source"] == "jooble" else "")
+            + (" · snippet only: read the full ad" if str(j.get("short_text")).lower() == "true" else ""), axis=1)
         show["url"] = short["url"]
         st.dataframe(show, hide_index=True, use_container_width=True,
                      column_config={"url": st.column_config.LinkColumn("ad", display_text="open"),
@@ -864,8 +870,21 @@ with tab_short:
         job = short.loc[pick]
         slug = slug_of(job)
         d1, d2 = st.columns(2)
-        d1.markdown(f"**You have:** {job['skills_you_have']}")
-        d2.markdown(f"**Missing:** {job['skills_missing'] if pd.notna(job['skills_missing']) else 'nothing'}")
+        def listed(column):  # a comma-separated list of skills from the scoring, or "" if there is none
+            value = job.get(column)
+            return value if isinstance(value, str) and value.strip() else ""
+
+        d1.markdown(f"**You have:** {listed('skills_you_have') or 'none recognised'}")
+        d2.markdown(f"**Missing:** {listed('skills_missing') or 'nothing'}")
+        if listed("essentials_you_have") or listed("essentials_missing"):  # from the ad's "Requirements" part
+            d1.markdown(f"**Must-haves you have:** {listed('essentials_you_have') or 'none recognised'}")
+            if listed("essentials_missing"):
+                d2.markdown(f"**Must-haves missing:** {listed('essentials_missing')}")
+        if listed("nice_to_have"):
+            d2.markdown(f"**Only nice to have:** {listed('nice_to_have')}")
+        if str(job.get("short_text")).lower() == "true":
+            st.caption("This job was scored on a short snippet only, so its score is a rough guess: "
+                       "open the full ad before deciding.")
 
         st.divider()
         st.subheader("Tailored CV")
