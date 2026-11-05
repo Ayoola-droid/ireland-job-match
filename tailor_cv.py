@@ -49,6 +49,9 @@ def tags_in(text, vocab):
     return found
 
 
+RELEVANT = 1  # a bullet counts as relevant from one shared skill (weight 1+) or four shared words
+
+
 def relevance(item_text, item_tags, job_tags, job_words, weights):
     tag_score = sum(weights.get(t, 1) for t in item_tags if t in job_tags)
     word_score = min(len(words(item_text) & job_words), 6) * 0.25
@@ -214,11 +217,15 @@ def select_content(master, vocab, job, ctx):
     # 3. Projects: the most relevant ones
     projects = sorted(master["projects"], key=lambda p: -rel(p["bullet"], p["tags"]))[: master["max_projects"]]
 
-    # 4. Experience: every role kept in date order; most relevant bullets first, trimmed
+    # 4. Experience: every role kept in date order (so there are no gaps), most relevant bullets first.
+    #    Only bullets that match the job are kept (a shared skill, or several shared words); a role with
+    #    none keeps its single closest bullet, so a care job doesn't fill half a data CV.
     experience = []
     for role in master["experience"]:
         bullets = sorted(role["bullets"], key=lambda b: -rel(b["text"], b["tags"]))
-        experience.append((role["heading"], [b["text"] for b in bullets[: master["max_bullets_per_role"]]]))
+        relevant = [b for b in bullets if rel(b["text"], b["tags"]) >= RELEVANT]
+        keep = (relevant or bullets[:1])[: master["max_bullets_per_role"]]
+        experience.append((role["heading"], [b["text"] for b in keep]))
 
     return {"summary_text": " ".join(s["text"] for s in summary if id(s) in chosen),
             "summary_used": len(chosen), "summary_total": len(summary),
