@@ -186,6 +186,12 @@ def preview_docx(path, letter=False, height=820):
                     height=height, scrolling=True)
 
 
+def find_link(job):
+    """A web search for the job's title and employer: a backup for links that have expired."""
+    from urllib.parse import quote_plus
+    return "https://www.google.com/search?q=" + quote_plus(f'"{job["title"]}" {job["company"]} job')
+
+
 def slug_of(job):
     return re.sub(r"[^A-Za-z0-9]+", "_", f"{job['company']}_{job['job_id']}").strip("_")
 
@@ -872,11 +878,16 @@ with tab_short:
         tests = [c for c in short.columns if c.startswith("ok_")]
         show["note"] = short.apply(lambda j: ("added by you" + ("" if j["shortlist"] else ": misses " + ", ".join(
             t[3:] for t in tests if not j[t]))) if j["source"] == "manual" else
-            ("via " + str(j.get("found_via") or "Jooble") if j["source"] == "jooble" else "")
+            ("via " + str(j.get("found_via") or "Jooble") + " · Jooble link may expire" if j["source"] == "jooble" else "")
             + (" · snippet only: read the full ad" if str(j.get("short_text")).lower() == "true" else ""), axis=1)
         show["url"] = short["url"]
+        # Jooble's links are tracking links that can expire: offer a web search for the same job as a backup
+        show["find"] = short.apply(lambda j: find_link(j) if j["source"] == "jooble" else None, axis=1)
         st.dataframe(show, hide_index=True, use_container_width=True,
                      column_config={"url": st.column_config.LinkColumn("ad", display_text="open"),
+                                    "find": st.column_config.LinkColumn(
+                                        "backup", display_text="find it",
+                                        help="Jooble's link may have expired: search the web for this job instead"),
                                     "skill_score": st.column_config.ProgressColumn("skill match", min_value=0,
                                                                                    max_value=100, format="%d%%"),
                                     "days_old": st.column_config.NumberColumn("days old", width="small"),
@@ -894,6 +905,9 @@ with tab_short:
             value = job.get(column)
             return value if isinstance(value, str) and value.strip() else ""
 
+        if job["source"] == "jooble":
+            st.caption(f"Jooble's link can expire. If it doesn't open, [search for this job]({find_link(job)}) "
+                       "on the employer's or recruiter's own site.")
         d1.markdown(f"**You have:** {listed('skills_you_have') or 'none recognised'}")
         d2.markdown(f"**Missing:** {listed('skills_missing') or 'nothing'}")
         if listed("essentials_you_have") or listed("essentials_missing"):  # from the ad's "Requirements" part
