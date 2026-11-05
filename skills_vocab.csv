@@ -34,7 +34,7 @@ Looker,looker,no,no,3
 Salesforce,salesforce,no,no,3
 SAP,\bsap\b,no,no,3
 Accounting qualification,\baca\b|\bacca\b|\bcima\b|chartered accountant,no,no,3
-Legal qualification,solicitor|barrister|qualified lawyer,no,no,3
+Legal qualification,solicitor|barrister|qualified lawyer|\blawyer\b|\bcounsel\b|law degree|admitted to practi[cs]e,no,no,3
 Clinical registration,registered nurse|\bnmbi\b|medical council,no,no,3
 Sales quota,\bquota\b|closing deals|new business sales,no,no,1
 Data analysis,data analys|analys\w* (?:of )?data|analytical skills,yes,no,3
@@ -46,3 +46,7 @@ Budgeting / financial management,budget|financial management|management accounts
 GIS / geospatial,\bgis\b|geospatial|arcgis|qgis|spatial analysis|geocod|\bsf package\b,yes,no,3
 Wireframing / prototyping,wirefram|balsamiq|figma|\bux design|\bui/ux\b|mock-?ups? of|(?:design|ux|ui|clickable|website|app) prototyp,yes,no,1
 Marketing strategy,marketing strateg|marketing plan|market research|market entry|go-to-market|\bswot\b|\bpestle?\b,yes,no,1
+Healthcare / care work,healthcare assistant|health care assistant|care assistant|\bHCA\b|\bcarers?\b|activities of daily living|personal care|care plans?\b|care of the older person,yes,no,3
+GDPR / data protection,\bGDPR\b|data protection,yes,no,1
+HR / human resources,human resources|\bHR (?:experience|function|business partner|generalist|advisor|adviser|policies|operations|systems)\b|employee relations|recruitment and selection|\bHRIS\b|workforce planning,no,no,3
+Learning & development,learning (?:and|&) development|\bL&D\b|training needs analysis|instructional design|organisational development|training delivery|deliver(?:ing)? training|facilitat\w+ (?:training|workshops|learning|programmes),no,no,3
