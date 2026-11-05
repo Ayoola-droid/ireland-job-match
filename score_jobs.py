@@ -11,6 +11,7 @@ skills_vocab.csv (your editable skills list). For each job it finds:
 Writes every job with its scores to data/processed/jobs_scored.csv.
 """
 import re
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -44,6 +45,7 @@ LANGUAGES = ["german", "french", "spanish", "italian", "dutch", "portuguese", "p
 SENIOR_PATTERN = r"senior|\bsr\b|staff|principal|\blead\b|head of|director|(?<!account )manager|\bvp\b"
 YEARS_PATTERN = r"(\d{1,2})\s*\+?\s*(?:years|yrs)"
 BOILERPLATE_SHARE = 0.3  # a sentence in 30%+ of one company's ads is company boilerplate
+CLOSING_HOUR = 12  # applications close at this hour on the closing date (HSE: 12:00 noon)
 
 # ---- Essential vs nice-to-have skills ----------------------------------------
 # A skill under "Minimum requirements" counts more than one under "Nice to have".
@@ -237,6 +239,19 @@ def score_from_rated(found):
     return round(w_have / (w_all + UNSEEN_WEIGHT), 2) if w_all else float("nan")
 
 
+def still_open(jobs, now=None):
+    """Is each job still taking applications right now? Worked out from the closing date every time
+    you score, not when the jobs were fetched, so a job that closed since then drops off.
+    The closing day itself counts until CLOSING_HOUR (HSE campaigns close at 12:00 noon).
+    Jobs with no closing date (most company boards) count as open."""
+    now = now or datetime.now()
+    if "closing_date" not in jobs:
+        return pd.Series(True, index=jobs.index)
+    closing = pd.to_datetime(jobs["closing_date"], errors="coerce")
+    deadline = closing + pd.Timedelta(hours=CLOSING_HOUR)
+    return (closing.isna() | (deadline > now)).astype(bool)
+
+
 def years_required(text):
     numbers = [int(n) for n in re.findall(YEARS_PATTERN, text, re.IGNORECASE) if int(n) <= 20]
     return max(numbers) if numbers else None
@@ -333,7 +348,7 @@ def main():
     jobs["ok_years"] = jobs["years_required"].isna() | (jobs["years_required"] <= MAX_YEARS)
     jobs["ok_language"] = jobs["languages_required"] == ""
     # HSE only: still open for applications, and open to you (not internal-only)
-    jobs["ok_open"] = jobs["still_open"].astype("boolean").fillna(True).astype(bool) if "still_open" in jobs else True
+    jobs["ok_open"] = still_open(jobs)
     if "ad_type" in jobs and not INCLUDE_INTERNAL:
         jobs["ok_eligible"] = ~jobs["ad_type"].fillna("").str.contains("internal|secondment", case=False)
     else:
