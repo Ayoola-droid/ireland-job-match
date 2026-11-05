@@ -28,6 +28,7 @@ MIN_SKILLS_MATCHED = setting("min_skills_matched", 3)
 SALARY_FLOOR = setting("salary_floor", 0)         # lowest yearly pay you'll accept (0 = no floor)
 CURRENCY = setting("currency", "€")               # the symbol pay is written with in the ads: €, £ or $
 INCLUDE_INTERNAL = setting("include_internal", False)  # True if eligible for HSE "Internal and Confined" jobs
+EXCLUDE_TITLES = setting("exclude_titles", "")    # kinds of job you don't want, e.g. "carer|care assistant"
 # -----------------------------------------------------------------------------
 
 SOURCES = {"greenhouse": Path("data/processed/jobs_boards.csv"),  # all company career boards (setting name kept)
@@ -354,6 +355,9 @@ def main():
     else:
         jobs["ok_eligible"] = True
     # Salary: checked when the pay is known; unknown pay passes, flagged as 'ask at interview'
+    # Kinds of job you don't want (the "Leave out job titles containing" setting)
+    jobs["ok_job_type"] = (~jobs["title"].fillna("").str.contains(EXCLUDE_TITLES, case=False, regex=True)
+                           if EXCLUDE_TITLES.strip(" |") else True)
     jobs["ok_salary"] = jobs["pay_min"].isna() | (jobs["pay_min"] >= SALARY_FLOOR)
     jobs["ok_skills"] = (jobs["skill_score"] >= MIN_SCORE) & (jobs["n_have"] >= MIN_SKILLS_MATCHED)
     # Must-haves: an ad that lists a skill you don't have under its essential requirements is left out
@@ -366,7 +370,7 @@ def main():
     jobs["ok_not_applied"] = jobs["applied_on"] == ""
     print(f"Applications in your log: {len(log)}")
 
-    tests = ["ok_recent", "ok_open", "ok_eligible", "ok_level", "ok_salary", "ok_years", "ok_language",
+    tests = ["ok_recent", "ok_open", "ok_eligible", "ok_job_type", "ok_level", "ok_salary", "ok_years", "ok_language",
              "ok_skills", "ok_essentials", "ok_not_applied"]
     jobs["shortlist"] = jobs[tests].all(axis=1)
 
@@ -416,7 +420,8 @@ def main():
                   "years": f"asks {int(j['years_required']) if pd.notna(j['years_required']) else '?'} yrs",
                   "language": j["languages_required"], "level": "senior title",
                   "skills": f"{j['n_have']} of {j['n_asked']} skills",
-                  "essentials": f"must have {j['essentials_missing']}"}.get(failed, "")
+                  "essentials": f"must have {j['essentials_missing']}",
+                  "job_type": "title matches your 'leave out' words"}.get(failed, "")
         print(f"  {j['company']} | {j['title']} | failed: {failed} ({detail})")
 
     unscored = jobs[jobs["ok_recent"] & jobs["ok_level"] & jobs["ok_years"] & jobs["ok_language"] & (jobs["n_asked"] == 0)]
