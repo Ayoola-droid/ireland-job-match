@@ -70,13 +70,17 @@ DESIRABLE_HEADINGS = [
     r"bonus (?:points|skills)(?: and attributes)?(?: if)?", r"desirable(?: criteria| skills| requirements| experience)?",
     r"it(?:'|’)?s a (?:plus|bonus)(?: if)?", r"it would be (?:great|nice|a plus)(?: if)?", r"pluses",
     r"extra credit", r"even better(?: if)?", r"additional skills", r"good to have"]
-OTHER_HEADINGS = [  # these end the requirements: duties, the company, benefits, pay
-    r"about (?:us|the (?:team|role|company|job|position))", r"about [A-Z]\w+", r"benefits", r"what we offer",
-    r"perks", r"why (?:join|work)", r"our (?:benefits|commitment|values|mission|culture)",
-    r"equal (?:employment )?opportunit\w+", r"how to apply",
+OTHER_HEADINGS = [  # these end the requirements: the duties, the pay
+    r"about the (?:role|job|position)", r"how to apply",
     r"(?:key |principal )?(?:duties|responsibilities)(?: and responsibilities)?", r"what you(?:'|’)?ll do",
-    r"what you will do", r"what will (?:i|you) be doing\??", r"the role", r"in this role", r"purpose of the post", r"remuneration", r"salary",
-    r"working hours", r"when you join", r"unleash your potential", r"life at [A-Z]\w+"]
+    r"what you will do", r"what will (?:i|you) be doing\??", r"the role", r"in this role", r"purpose of the post",
+    r"remuneration", r"salary", r"working hours"]
+# The employer selling itself: the company, its benefits and its parent company ("When you join
+# Salesforce..." in Intercom's ads). Skills named here are not asked of you, so they don't count at all.
+COMPANY_HEADINGS = [
+    r"about (?:us|the (?:team|company))", r"about [A-Z]\w+", r"benefits", r"what we offer", r"perks",
+    r"why (?:join|work)", r"our (?:benefits|commitment|values|mission|culture)",
+    r"equal (?:employment )?opportunit\w+", r"when you join", r"unleash your potential", r"life at [A-Z]\w+"]
 # Words next to a skill that say how much it matters ("SQL is a plus", "Python required")
 DESIRABLE_CUE = re.compile(r"\bplus\b|\bbonus\b|nice[- ]to[- ]have|\bpreferred\b|\bpreferabl\w*|\bdesirabl\w*"
                            r"|\badvantage\w*|\bbeneficial\b|\bideally\b|\bwould be great\b|\bnot (?:required|essential)\b",
@@ -96,7 +100,8 @@ def _heading_regex(phrases):
 
 
 HEADINGS = [(kind, _heading_regex(phrases)) for kind, phrases in
-            [("essential", ESSENTIAL_HEADINGS), ("desirable", DESIRABLE_HEADINGS), ("normal", OTHER_HEADINGS)]]
+            [("essential", ESSENTIAL_HEADINGS), ("desirable", DESIRABLE_HEADINGS), ("normal", OTHER_HEADINGS),
+             ("company", COMPANY_HEADINGS)]]
 
 
 def split_sentences(text):
@@ -170,10 +175,13 @@ def find_skills(text, vocab):
 
 def requirement_sections(text):
     """Split an ad into parts by its headings. Returns [(start, end, kind)], where kind is
-    'essential' (Minimum requirements, Who you are...), 'desirable' (Nice to have, Preferred...)
-    or 'normal' (everything else: the intro, duties, About us...)."""
-    marks = sorted((m.start(), m.end(), kind) for kind, rx in HEADINGS for m in rx.finditer(text)
-                   if m.group(0)[0].isupper())
+    'essential' (Minimum requirements, Who you are...), 'desirable' (Nice to have, Preferred...),
+    'company' (About us, benefits: not about you) or 'normal' (everything else: the intro, the duties)."""
+    # Where two headings match the same words, the longest wins ("About the role" over "About the"),
+    # then the order of HEADINGS ("About you" is a requirement, not the company's "About Stripe")
+    priority = {kind: i for i, (kind, _) in enumerate(HEADINGS)}
+    marks = sorted(((m.start(), m.end(), kind) for kind, rx in HEADINGS for m in rx.finditer(text)
+                    if m.group(0)[0].isupper()), key=lambda h: (h[0], -h[1], priority[h[2]]))
     headings = []
     for start, end, kind in marks:  # "Preferred requirements" also contains "requirements": keep the first
         if not headings or start >= headings[-1][1]:
@@ -190,6 +198,8 @@ def importance_at(text, start, end, sections):
     """How much one mention of a skill matters: its section first, then the words around it
     in the same sentence or list item ('...is a plus' makes it desirable, '...required' essential)."""
     kind = next((k for s, e, k in sections if s <= start < e), "normal")
+    if kind == "company":
+        return "company"
     before = re.split(r"[.!?;\n•]", text[max(0, start - CUE_BEFORE):start])[-1]
     after = re.split(r"[.!?;\n•]", text[end:end + CUE_AFTER])[0]
     nearby = before + " " + after
@@ -212,7 +222,8 @@ def rate_skills(text, vocab):
     rank = {"desirable": 0, "normal": 1, "essential": 2}
     found = {}
     for skill, pattern, i_have_it, weight in vocab:
-        levels = [importance_at(text, m.start(), m.end(), sections) for m in pattern.finditer(text)]
+        levels = [level for m in pattern.finditer(text)
+                  if (level := importance_at(text, m.start(), m.end(), sections)) != "company"]
         if levels:
             found[skill] = (max(levels, key=rank.get), i_have_it, weight)
     return found
