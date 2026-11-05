@@ -689,7 +689,8 @@ with tab_find:
             st.caption("For each employer on the permit list with enough permits this year, the app checks whether it "
                        "has a public job board on Greenhouse, Workable, Lever or Ashby. **match** = the board's "
                        "company name matches; **check** = found by the employer's name only, so open the board to "
-                       "confirm. For employers with no board found, paste their careers page address. Tick the ones "
+                       "confirm; **no jobs here** = the board has no jobs in your locations (often another country's "
+                       "board). For employers with no board found, paste their careers page address. Tick the ones "
                        "to add, then add them to your career boards.")
             f1, f2 = st.columns([1, 2])
             def save_min_permits():
@@ -712,19 +713,23 @@ with tab_find:
                 offer = found[found["added"] != "yes"].copy()
                 offer["permits"] = pd.to_numeric(offer["permits"], errors="coerce")
                 offer = offer.sort_values(["status", "permits"], ascending=[True, False],
-                                          key=lambda c: c.map({"match": 0, "check": 1, "not found": 2})
+                                          key=lambda c: c.map({"match": 0, "check": 1, "no jobs here": 2, "not found": 3})
                                           if c.name == "status" else c)
                 offer.insert(0, "add", offer["status"] == "match")
                 st.caption(f"{(found['status'] != 'not found').sum()} boards found for {len(found)} employers checked; "
                            f"{(found['added'] == 'yes').sum()} already added.")
                 picked = st.data_editor(
-                    offer[["add", "employer", "permits", "status", "ats", "board_token", "board_name", "jobs_now",
-                           "careers_page"]],
+                    offer.reindex(columns=["add", "employer", "permits", "status", "ats", "board_token", "board_name",
+                                       "jobs_now", "jobs_here", "careers_page"], fill_value=""),
                     hide_index=True, use_container_width=True, key="ed-sponsor-boards",
-                    disabled=["employer", "permits", "status", "ats", "board_token", "board_name", "jobs_now"],
+                    disabled=["employer", "permits", "status", "ats", "board_token", "board_name", "jobs_now", "jobs_here"],
                     column_config={"add": st.column_config.CheckboxColumn(width="small"),
                                    "permits": st.column_config.NumberColumn(width="small"),
                                    "jobs_now": st.column_config.TextColumn("jobs now", width="small"),
+                                   "jobs_here": st.column_config.TextColumn(
+                                       "in your area", width="small",
+                                       help="Jobs on the board in your locations. 0 = a board for another "
+                                            "country: don't add it, paste the local careers page instead"),
                                    "careers_page": st.column_config.LinkColumn(
                                        "careers page (paste if not found)", width="medium")})
                 chosen = picked[picked["add"] & ((picked["board_token"] != "") | (picked["careers_page"] != ""))]
