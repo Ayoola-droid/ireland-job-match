@@ -856,6 +856,14 @@ with tab_short:
         show["skill_score"] = (show["skill_score"] * 100).round()
         show["pay"] = short.apply(lambda j: f"{money(j['pay_min'])}–{money(j['pay_max'])}" if pd.notna(j.get("pay_min"))
                                   else "not stated", axis=1)
+        def closes(job):  # "18 Nov (13 days)": only jobs with a closing date (HSE) have one
+            when = pd.to_datetime(job.get("closing_date"), errors="coerce")
+            if pd.isna(when):
+                return ""
+            days = (when.date() - date.today()).days
+            return f"{when:%d %b} " + ("(today, noon)" if days == 0 else f"({days} day{'s' if days != 1 else ''})")
+
+        show["closes"] = short.apply(closes, axis=1)
         tests = [c for c in short.columns if c.startswith("ok_")]
         show["note"] = short.apply(lambda j: ("added by you" + ("" if j["shortlist"] else ": misses " + ", ".join(
             t[3:] for t in tests if not j[t]))) if j["source"] == "manual" else
@@ -869,7 +877,9 @@ with tab_short:
                                     "days_old": st.column_config.NumberColumn("days old", width="small"),
                                     "sponsor_level": st.column_config.TextColumn("sponsor", width="small"),
                                     "company": st.column_config.TextColumn(width="small"),
-                                    "pay": st.column_config.TextColumn(width="medium")})
+                                    "pay": st.column_config.TextColumn(width="medium"),
+                                    "closes": st.column_config.TextColumn(
+                                        width="small", help="Closing date for applications (HSE closes at noon)")})
         pick = st.selectbox("Choose a job", range(len(short)),
                             format_func=lambda i: f"{short.loc[i, 'company']} | {short.loc[i, 'title']}")
         job = short.loc[pick]
