@@ -640,6 +640,10 @@ with tab_find:
                                        help="A job is kept if its location contains any of these, e.g. "
                                             "london|manchester|remote")
         location_label = w2.text_input("Name of your search area (shown in the header)", S.get("location_label", "Ireland"))
+        exclude_titles = st.text_input("Leave out job titles containing (separate with |)", S.get("exclude_titles", ""),
+                                       placeholder="e.g. carer|care assistant|nurse",
+                                       help="Jobs whose title contains any of these words are kept off your "
+                                            "shortlist (test: job_type). Leave empty to keep every kind of job.")
         x1, x2, x3 = st.columns(3)
         currency = x1.selectbox("Currency in job ads", ["€", "£", "$"], index=["€", "£", "$"].index(CURRENCY))
         english = x2.selectbox("Write in", ["UK/Irish English", "US English", "Australian English", "Canadian English"],
@@ -769,6 +773,7 @@ with tab_find:
         settings.save({"days": days, "salary_floor": floor, "min_score": min_score, "max_years": max_years,
                        "min_skills_matched": min_skills, "include_internal": internal,
                        "location_words": location_words.strip(" |") or "ireland", "location_label": location_label,
+                       "exclude_titles": exclude_titles.strip(" |"),
                        "currency": currency, "writing_english": english, "app_name": app_name or "Job Match",
                        "check_sponsorship": sponsorship, "use_greenhouse": use_greenhouse, "use_hse": use_hse,
                        "use_jooble": use_jooble, "jooble_location": jooble_location.strip() or "Ireland",
